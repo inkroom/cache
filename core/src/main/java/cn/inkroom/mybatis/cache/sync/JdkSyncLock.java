@@ -19,7 +19,9 @@ public class JdkSyncLock implements SyncLock {
     public boolean lock(String key) {
         // TODO: 2019/10/26 这里好像会有线程安全问题
         if (lockMap.get(key) == null) {
-            lockMap.put(key, new ReentrantLock()).lock();
+            ReentrantLock lock = new ReentrantLock();
+            lockMap.put(key, lock);
+            lock.lock();
         } else {
             lockMap.get(key).lock();
         }

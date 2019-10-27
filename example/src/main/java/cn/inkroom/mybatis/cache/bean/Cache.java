@@ -42,4 +42,14 @@ public class Cache
     public void setAge(int age) {
         this.age = age;
     }
+
+    @Override
+    public String toString() {
+        return "Cache{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", type=" + type +
+                ", age=" + age +
+                '}';
+    }
 }

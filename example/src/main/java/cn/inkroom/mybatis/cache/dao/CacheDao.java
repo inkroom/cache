@@ -18,7 +18,7 @@ public interface CacheDao {
 
     @Select("select * from cache")
     @ResultType(Cache.class)
-    @cn.inkroom.mybatis.cache.annotation.Cache(key = "'page='+page+' - '+#context")
-    List<Cache> list(@Param("page") int page, @Param("size") int size) throws Exception;
+    @cn.inkroom.mybatis.cache.annotation.Cache(key = "'page='+page",sync =false)
+    List<Cache> list(@Param("page") int page, @Param("size") int size);
 
 }

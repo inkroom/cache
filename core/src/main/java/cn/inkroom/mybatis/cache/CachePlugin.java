@@ -1,6 +1,7 @@
 package cn.inkroom.mybatis.cache;
 
 import cn.inkroom.mybatis.cache.annotation.Cache;
+import cn.inkroom.mybatis.cache.db.CacheTemplate;
 import cn.inkroom.mybatis.cache.ognl.CacheOgnlContext;
 import cn.inkroom.mybatis.cache.sync.JdkSyncLock;
 import cn.inkroom.mybatis.cache.sync.SyncLock;
@@ -16,9 +17,8 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationContext;
-import org.springframework.data.redis.core.RedisTemplate;
 
+import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -28,24 +28,6 @@ import java.util.*;
  * @author 墨盒
  * @date 2019/10/26
  */
-//@Intercepts({
-//        @Signature(
-//                type = Executor.class,
-//                method = "update",
-//                args = {MappedStatement.class, Object.class}
-//        ),
-//        @Signature(
-//                type = Executor.class,
-//                method = "query",
-//                args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}
-//        ),
-//        @Signature(
-//                type = StatementHandler.class,
-//                method="query",
-//                args = {Statement.class,ResultHandler.class}
-//        )
-//}
-//)
 @Intercepts(value = {
         @Signature(type = Executor.class,
                 method = "update",
@@ -56,7 +38,13 @@ import java.util.*;
                         CacheKey.class, BoundSql.class}),
         @Signature(type = Executor.class,
                 method = "query",
-                args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})})
+                args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
+        @Signature(type = Executor.class,
+                method = "update",
+                args = {MappedStatement.class, Object.class}
+        )
+}
+)
 public class CachePlugin implements Interceptor {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
@@ -66,14 +54,44 @@ public class CachePlugin implements Interceptor {
     private Map<String, Object> ognlMap = new HashMap<>();
 
 
-    public CachePlugin() {
-    }
-
+    private CacheTemplate cacheTemplate;
     /**
      * 是否启用同步；可在mybatis xml中配置，也可以在dao 方法中注解
      * <p>注解权限高于xml</p>
      */
     private boolean lockable = false;
+
+    @Resource(name = "cacheTemplate")
+    public void setCacheTemplate(CacheTemplate cacheTemplate) {
+        logger.debug("注入 redis template");
+        this.cacheTemplate = cacheTemplate;
+    }
+
+    @Resource(name = "syncLock")
+    public void setLock(SyncLock lock) {
+        this.lock = lock;
+    }
+
+    public CachePlugin(boolean lockable) {
+        this.lockable = lockable;
+    }
+
+    public void setLockable(boolean lockable) {
+        this.lockable = lockable;
+    }
+
+    public CachePlugin(SyncLock lock) {
+        this.lock = lock;
+    }
+
+    public CachePlugin(CacheTemplate cacheTemplate) {
+        this.cacheTemplate = cacheTemplate;
+    }
+
+    public CachePlugin() {
+        logger.debug("插件被创建");
+    }
+
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
@@ -81,22 +99,81 @@ public class CachePlugin implements Interceptor {
         logger.debug("target=-{}", invocation.getTarget());
         logger.debug("method={}", invocation.getMethod());
 
+
+        if (invocation.getMethod().getName().equals("query")) {
+            //查询
+            return query(invocation);
+        } else {//修改
+            return invocation.proceed();
+        }
+    }
+
+    /**
+     * 执行查询任务
+     *
+     * @param invocation
+     * @return
+     */
+    private Object query(Invocation invocation) throws Throwable {
+        //获取Cache
+        org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
+        Cache cache = getCache(mappedStatement);
+
+        if (cache == null) {//没有注解，直接执行sql
+            return invocation.proceed();
+        }
         //封装参数
         Map<String, Object> args = getArgs(invocation);
-
-        org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
-        logger.debug("id={}", mappedStatement.getId());
-        getCache(mappedStatement);
-//获取注解
-        Cache cache = getCache(mappedStatement);
+        //获取缓存key
         String key = getKey(mappedStatement.getId(), cache, args);
-        //解析key
-//        Object expression = Ognl.parseExpression(cache.key());
-//        String key = Ognl.getValue(expression, args, String.class);
 
-        logger.debug("解析出来的key={}", key);
-        return invocation.proceed();
+        //从redis中获取
+        Object redisValue = cacheTemplate.get(key);
+
+        //拿到redis值
+        if (redisValue != null) {
+            logger.debug("第一次从redis获取值 ，key={}", key);
+            return redisValue;
+        }
+
+        //是否启用lock
+        if (cache.sync() || this.lockable) {
+            logger.debug("启用锁,key-{}", key);
+            //启用同步
+            lock.lock(key);
+
+            //再次从redis中获取值
+            redisValue = cacheTemplate.get(key);
+            //拿到redis值
+            if (redisValue != null) {
+                lock.unlock(key);
+                logger.debug("二次从redis中获取值成功，key={}", key);
+                return redisValue;
+            }
+            //此时方才执行sql
+            redisValue = invocation.proceed();
+        } else {
+            redisValue = invocation.proceed();
+        }
+
+        //存入redis
+        if (cache.nullable() && redisValue == null) {
+            cacheTemplate.set(key, null, cache.ttl());
+        } else if (redisValue != null) {
+            cacheTemplate.set(key, redisValue, cache.ttl());
+        }
+        //执行完毕才解锁，以便于后续线程进入
+        if (cache.sync() || this.lockable) {
+            lock.unlock(key);
+            logger.debug("执行完sql，解锁key={}", key);
+        }
+
+
+        return redisValue;
+
+
     }
+
 
     /**
      * 获取缓存用的key
@@ -111,11 +188,8 @@ public class CachePlugin implements Interceptor {
 
         try {
             if (expression == null) {
-
                 expression = Ognl.parseExpression(cache.key());
                 ognlMap.put(id, expression);
-
-
             }
 
             //必须提供一个MemberAccess但是没有用
@@ -136,12 +210,16 @@ public class CachePlugin implements Interceptor {
         return ((Map<String, Object>) invocation.getArgs()[1]);
     }
 
-//    private String getKey(Cache cache){
-//
-//    }
-
+    /**
+     * 此处需要注意线程安全
+     *
+     * @param ms
+     * @return
+     * @throws Exception
+     */
     private Cache getCache(MappedStatement ms) throws Exception {
         String id = ms.getId();
+        logger.debug("缓存的cache={}", methodCacheMap);
         //从缓存中拿
         if (methodCacheMap.containsKey(id)) {
             return methodCacheMap.get(id);
@@ -156,7 +234,8 @@ public class CachePlugin implements Interceptor {
         for (Method method : methods) {
             if (method.getName().equals(methodName)) {
                 Cache c = method.getAnnotation(Cache.class);
-                return methodCacheMap.put(id, c);
+                methodCacheMap.put(id, c);
+                return c;
             }
         }
 
