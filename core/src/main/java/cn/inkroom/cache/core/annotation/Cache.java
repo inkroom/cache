@@ -15,7 +15,13 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Cache {
-    // TODO: 2019/10/27 主动更新注解
+
+    /**
+     * 当有效期少于指定值时，主动更新缓存
+     * <p>默认不启用</p>
+     * @return
+     */
+    long expire() default -1;
 
     /**
      * 获取key的脚本，具体语法和解析引擎相关

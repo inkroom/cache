@@ -25,4 +25,10 @@ public class RedisCacheTemplate implements CacheTemplate {
     public Object get(String key) throws Throwable {
         return template.opsForValue().get(key);
     }
+
+    @Override
+    public long ttl(String key) throws Throwable {
+        Long expire = template.getExpire(key);
+        return expire == null ? -2 : expire;
+    }
 }

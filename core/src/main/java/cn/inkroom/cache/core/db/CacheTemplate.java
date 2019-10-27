@@ -24,4 +24,13 @@ public interface CacheTemplate {
      * @throws Throwable
      */
     Object get(String key) throws Throwable;
+
+    /**
+     * 获取缓存有效期
+     *
+     * @param key key
+     * @return 单位毫秒,-1永不过期，-2该key不存在
+     * @throws Throwable
+     */
+    long ttl(String key) throws Throwable;
 }

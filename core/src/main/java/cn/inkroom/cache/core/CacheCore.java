@@ -62,7 +62,7 @@ public class CacheCore {
         //获取key
         String key = engine.express(cache.key(), args);
         //从redis中获取值
-        Object value = cacheTemplate.get(key);
+        Object value = getValue(key, cache, task);
 
         if (value != null) {
             logger.debug("第一次获取值成功,key={}", key);
@@ -71,12 +71,11 @@ public class CacheCore {
         //是否启用锁
         if (lock(cache, key)) {
             //二次获取值
+            //一般情况下，如果第二次获取成功，那么此时缓存多半是刚更新，此时忽略主动更新功能
             value = cacheTemplate.get(key);
             if (value != null) {
                 logger.debug("二次获取值成功,key={}", key);
-
                 unlock(cache, key);
-
                 return value;
             }
         }
@@ -89,6 +88,38 @@ public class CacheCore {
 
         return value;
 
+    }
+
+    /**
+     * 获取value，并在满足情况下，主动更新缓存
+     *
+     * @param key   key
+     * @param cache 配置信息
+     * @param task  真正获取数据的方法
+     * @return
+     */
+    private Object getValue(String key, Cache cache, Task task) throws Throwable {
+
+        Object value = cacheTemplate.get(key);
+        if (value != null) {
+            long expire = cache.expire();
+            if (expire == -1) {//不主动更新
+                return value;
+            } else if (expire < cacheTemplate.ttl(key)) {
+                //另启线程更新数据
+                // TODO: 2019/10/27 线程池
+                new Thread(() -> {
+                    try {
+                        Object proceed = task.proceed();
+                        cacheTemplate.set(key, proceed, getTtl(cache));
+                        logger.debug("主动更新值={}", key);
+                    } catch (Throwable throwable) {
+                        logger.warn("[获取数据] - 主动更新缓存时获取数据失败 {}", throwable.getMessage(), throwable);
+                    }
+                }).start();
+            }
+        }
+        return value;
     }
 
     private long getTtl(Cache cache) {
