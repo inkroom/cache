@@ -6,13 +6,35 @@
 
 - core 核心实现
 - example 在spring中的使用方法
+- mybatis 基于mybatis的实现，可在单独mybatis环境中使用
+- spring spring环境，基于动态代理
+- starter SpringBoot starter，自动配置
 
+
+### 开发
+
+#### 环境
+
+- redis
+- mysql
+
+#### 步骤
+
+修改example/src/main/resources/application.properties 数据库配置信息
+
+cd /
+mvn package
 
 ### 使用方法
 
-#### 引入
+#### mybatis
 
+#### spring
 
+#### SpringBoot
+
+---
+更多使用方法见 example
 
 #### 注册
 使用spring注册CachePlugin即可
@@ -37,7 +59,7 @@ public CachePlugin cachePlugin() {
 
 #### 替换缓存实现方案
 
-在Spring中注册`name=cacheTemplate`的`cn.inkroom.mybatis.cache.sync.SyncLock`实现类即可
+在Spring中注册`name=cacheTemplate`的`SyncLock`实现类即可
 
 或手动调用`CachePlugin.setCacheTemplate`亦可
 

@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
 <!--    <plugins>-->
-<!--        <plugin interceptor="cn.inkroom.mybatis.cache.CachePlugin">-->
+<!--        <plugin interceptor="CachePlugin">-->
 
 <!--        </plugin>-->
 <!--    </plugins>-->
