@@ -21,4 +21,13 @@ public interface CacheDao {
     @cn.inkroom.cache.core.annotation.Cache(key = "'page_'+#page", sync = false)
     List<Cache> list(@Param("page") int page, @Param("size") int size);
 
+    @Select("select * from cache")
+    @ResultType(Cache.class)
+    @cn.inkroom.cache.core.annotation.Cache(key = "'page_con_'+#page", condition = "#params['page']==2")
+    List<Cache> condition(@Param("page") int page, @Param("size") int size);
+
+    @Select("select * from cache")
+    @ResultType(Cache.class)
+    @cn.inkroom.cache.core.annotation.Cache(key = "'page_conRv_'+#page", condition = "#params['page']==32 && #rv.size() == 6")
+    List<Cache> conditionRv(@Param("page") int page, @Param("size") int size);
 }

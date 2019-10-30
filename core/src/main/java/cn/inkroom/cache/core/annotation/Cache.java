@@ -19,6 +19,7 @@ public @interface Cache {
     /**
      * 当有效期少于指定值时，主动更新缓存
      * <p>默认不启用</p>
+     *
      * @return
      */
     long expire() default -1;
@@ -29,6 +30,19 @@ public @interface Cache {
      * @return
      */
     String key();
+
+
+    /**
+     * 是否将结果缓存，返回boolean的脚本
+     * 返回true则缓存数据，默认为true
+     * <p>脚本，参数统一放在params下，返回结果为rv</p>
+     * <p>假设需要根据参数page来判断是否缓存，则可以写成 #params.page==3 意为当参数page为3时，缓存数据</p>
+     * <p>假设需要根据返回结果来判断，可以写成 #rv.age==31 </p>
+     * <p>如果返回结果是一个数组，可以通过size()获取大小</p>
+     *
+     * @return
+     */
+    String condition() default "";
 
     /**
      * ttl，单位毫秒

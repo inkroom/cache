@@ -20,6 +20,16 @@ public class SpElEngine implements ScriptEngine {
 
     @Override
     public String express(String express, Map<String, Object> args) {
+
+        Expression expression = getExpress(express);
+        EvaluationContext context = getContext(args);
+        Object value = expression.getValue(context);
+        if (value == null) return null;
+        return value.toString();
+
+    }
+
+    private Expression getExpress(String express) {
         Expression expression;
         if (spElMap.containsKey(express)) {
             expression = spElMap.get(express);
@@ -27,7 +37,10 @@ public class SpElEngine implements ScriptEngine {
             expression = spelExpressionParser.parseExpression(express);
             spElMap.put(express, expression);
         }
+        return expression;
+    }
 
+    private EvaluationContext getContext(Map<String, Object> args) {
         EvaluationContext context = new StandardEvaluationContext(args);
         //必须这样才能通过 # 获取map中的数据
         args.forEach(new BiConsumer<String, Object>() {
@@ -36,9 +49,16 @@ public class SpElEngine implements ScriptEngine {
                 context.setVariable(s, o);
             }
         });
-        Object value = expression.getValue(context);
-        if (value == null) return null;
-        return value.toString();
+        return context;
+    }
+
+    @Override
+    public boolean booleanExpress(String express, Map<String, Object> args) {
+        Expression expression = getExpress(express);
+        EvaluationContext context = getContext(args);
+
+        return expression.getValue(context, Boolean.class);
+
 
     }
 }

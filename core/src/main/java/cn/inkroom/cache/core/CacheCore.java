@@ -87,12 +87,37 @@ public class CacheCore {
         logger.debug("执行真正获取数据方法={}", key);
         value = task.proceed();
         //存入redis
-        cacheTemplate.set(key, value, getTtl(cache));
-
+        if (isSave(cache.condition(), args, value)) {
+            cacheTemplate.set(key, value, getTtl(cache));
+        }
         unlock(cache, key);
 
         return value;
 
+    }
+
+    /**
+     * 判断是否要存入缓存
+     * <p>通过 #params 访问参数</p>
+     * <p>通过 #rv 访问结果</p>
+     *
+     * @param script      脚本
+     * @param params      参数
+     * @param returnValue 可能要缓存的结果
+     * @return
+     * @see Cache#condition()
+     */
+    private boolean isSave(String script, Map<String, Object> params, Object returnValue) {
+        logger.debug("condition脚本={}", script);
+        if ("".equals(script)) return true;
+
+
+        Map<String, Object> args = new HashMap<>();
+        args.put("params", params);
+        args.put("rv", returnValue);
+
+        logger.debug("condition的context={}", args);
+        return engine.booleanExpress(script, args);
     }
 
     /**

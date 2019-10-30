@@ -19,4 +19,12 @@ public interface ScriptEngine {
      */
     String express(String express, Map<String, Object> args);
 
+    /**
+     * 执行脚本，获取boolean类型返回值
+     *
+     * @param express
+     * @param args
+     * @return
+     */
+    boolean booleanExpress(String express, Map<String, Object> args);
 }

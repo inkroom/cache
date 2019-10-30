@@ -41,4 +41,9 @@ public class JsEngine implements ScriptEngine {
             return null;
         }
     }
+
+    @Override
+    public boolean booleanExpress(String express, Map<String, Object> args) {
+        return false;
+    }
 }
