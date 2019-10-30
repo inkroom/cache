@@ -2,26 +2,18 @@ package cn.inkroom.cache.core;
 
 import cn.inkroom.cache.core.annotation.Cache;
 import cn.inkroom.cache.core.db.CacheTemplate;
-import cn.inkroom.cache.core.db.RedisCacheTemplate;
 import cn.inkroom.cache.core.script.ScriptEngine;
 import cn.inkroom.cache.core.script.SpElEngine;
 import cn.inkroom.cache.core.sync.SyncLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.expression.EvaluationContext;
-import org.springframework.expression.Expression;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 缓存核心类

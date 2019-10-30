@@ -22,7 +22,7 @@ public class SpElEngine implements ScriptEngine {
     public String express(String express, Map<String, Object> args) {
 
         Expression expression = getExpress(express);
-        EvaluationContext context = getContext(args);
+        EvaluationContext context = getContext(express, args);
         Object value = expression.getValue(context);
         if (value == null) return null;
         return value.toString();
@@ -40,7 +40,7 @@ public class SpElEngine implements ScriptEngine {
         return expression;
     }
 
-    private EvaluationContext getContext(Map<String, Object> args) {
+    public EvaluationContext getContext(String express, Map<String, Object> args) {
         EvaluationContext context = new StandardEvaluationContext(args);
         //必须这样才能通过 # 获取map中的数据
         args.forEach(new BiConsumer<String, Object>() {
@@ -55,7 +55,7 @@ public class SpElEngine implements ScriptEngine {
     @Override
     public boolean booleanExpress(String express, Map<String, Object> args) {
         Expression expression = getExpress(express);
-        EvaluationContext context = getContext(args);
+        EvaluationContext context = getContext(express, args);
 
         return expression.getValue(context, Boolean.class);
 

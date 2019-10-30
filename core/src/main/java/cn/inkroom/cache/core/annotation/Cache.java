@@ -9,6 +9,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * 脚本的语法和解析引擎相关
+ * <p>默认使用SpEl语法</p>
+ *
  * @author 墨盒
  * @date 2019/10/26
  */

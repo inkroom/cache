@@ -4,10 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,15 +37,16 @@ class SpElEngineTest {
     @Test
     void booleanExpress() throws Exception {
         ScriptEngine engine = new SpElEngine();
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put("page", 42);
         map.put("size", "name");
-        map.put("count", Arrays.asList(32, 543, 63, 3));
+        map.put("count", new ArrayList<>(Arrays.asList(32, 543, 63, 3)));
 
         Map<String, String> temp = new HashMap<>();
         temp.put("page", "230d");
 
         map.put("temp", temp);
+
 
         assertTrue(engine.booleanExpress("#page==42", map));
         assertFalse(engine.booleanExpress("#page!=42", map));
@@ -70,6 +68,23 @@ class SpElEngineTest {
 
         assertEquals("32", engine.express("#count[0]", map));
 
+        assertEquals("230d", engine.express("#temp.page", map));
         assertEquals("230d", engine.express("#temp['page']", map));
+    }
+    /**
+     * 测试效率
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testPerformance() throws Exception {
+
+
+        long start = System.currentTimeMillis();
+        int count = 100;
+        for (int i = 0; i < count; i++) {
+            booleanExpress();
+        }
+        log.debug("SpEl执行{}次，耗时{}", count, (System.currentTimeMillis() - start));
     }
 }
