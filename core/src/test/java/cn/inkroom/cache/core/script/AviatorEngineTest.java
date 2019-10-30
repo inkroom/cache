@@ -45,9 +45,9 @@ private Logger log = LoggerFactory.getLogger(getClass());
 
         //测试list
 
-//        assertTrue(engine.booleanExpress("count.size == 4", map));
+        assertTrue(engine.booleanExpress("count(count) == 4", map));
 //
-//        assertFalse(engine.booleanExpress("count.size() != 4", map));
+        assertFalse(engine.booleanExpress("count(count) != 4", map));
 
         assertEquals("32", engine.express("count[0]", map));
 
