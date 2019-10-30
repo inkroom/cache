@@ -18,6 +18,10 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 缓存核心类
@@ -31,7 +35,7 @@ public class CacheCore {
 
     private Map<String, Cache> methodCacheMap = new HashMap<>();
 
-
+    private ExecutorService executor;
     private ScriptEngine engine = new SpElEngine();
 
     private CacheTemplate cacheTemplate;
@@ -39,6 +43,7 @@ public class CacheCore {
 
     public CacheCore() {
 
+        executor = Executors.newFixedThreadPool(20);
     }
 
 
@@ -107,8 +112,7 @@ public class CacheCore {
                 return value;
             } else if (expire < cacheTemplate.ttl(key)) {
                 //另启线程更新数据
-                // TODO: 2019/10/27 线程池
-                new Thread(() -> {
+                executor.execute(() -> {
                     try {
                         Object proceed = task.proceed();
                         cacheTemplate.set(key, proceed, getTtl(cache));
@@ -116,7 +120,8 @@ public class CacheCore {
                     } catch (Throwable throwable) {
                         logger.warn("[获取数据] - 主动更新缓存时获取数据失败 {}", throwable.getMessage(), throwable);
                     }
-                }).start();
+                });
+
             }
         }
         return value;
