@@ -16,14 +16,25 @@
     </properties>
 
     <dependencies>
-
+        <dependency>
+            <groupId>com.googlecode.aviator</groupId>
+            <artifactId>aviator</artifactId>
+            <version>2.3.3</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/org.xidea/jsel -->
+<!--        <dependency>-->
+<!--            <groupId>org.xidea</groupId>-->
+<!--            <artifactId>jsel</artifactId>-->
+<!--            <version>0.1.0</version>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>org.xidea</groupId>
             <artifactId>jsel</artifactId>
             <version>0.1.0</version>
+            <scope>system</scope>
+            <systemPath>${pom.basedir}/src/main/resources/lib/Lite-20111106.jar</systemPath>
         </dependency>
-
 
         <!--        <dependency>-->
         <!--            <groupId>ognl</groupId>-->
