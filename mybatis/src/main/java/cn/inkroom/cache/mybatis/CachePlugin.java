@@ -57,9 +57,25 @@ public class CachePlugin implements Interceptor {
         if (invocation.getMethod().getName().equals("query")) {
             //查询
             return query(invocation);
-        } else {//修改
-            return invocation.proceed();
+        } else {//修改，直接删除指定key
+            Object value = invocation.proceed();
+            del(invocation);
+            return value;
         }
+    }
+
+    /**
+     * 执行查询任务
+     *
+     * @param invocation
+     * @return
+     */
+    private Object del(final Invocation invocation) throws Throwable {
+        //获取Cache
+        org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
+        //封装参数
+        Map<String, Object> args = getArgs(invocation);
+        return core.del(mappedStatement.getId(), args);
     }
 
     /**

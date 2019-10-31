@@ -2,6 +2,7 @@ package cn.inkroom.cache.core;
 
 import cn.inkroom.cache.core.annotation.Cache;
 import cn.inkroom.cache.core.db.CacheTemplate;
+import cn.inkroom.cache.core.plugins.StaticsPlugin;
 import cn.inkroom.cache.core.script.ScriptEngine;
 import cn.inkroom.cache.core.script.SpElEngine;
 import cn.inkroom.cache.core.sync.SyncLock;
@@ -33,6 +34,8 @@ public class CacheCore {
     private CacheTemplate cacheTemplate;
     private boolean sync = false;
 
+    private StaticsPlugin plugin;
+
     public CacheCore() {
 
         executor = Executors.newFixedThreadPool(20);
@@ -40,6 +43,7 @@ public class CacheCore {
 
 
     public CacheCore(CacheTemplate cacheTemplate) {
+        super();
         this.cacheTemplate = cacheTemplate;
     }
 
@@ -62,7 +66,7 @@ public class CacheCore {
         Object value = getValue(key, cache, task);
 
         if (value != null) {
-            logger.debug("第一次获取值成功,key={}", key);
+            if (plugin != null) plugin.hit(id, cache, key, args);
             return value;
         }
         //是否启用锁
@@ -71,11 +75,12 @@ public class CacheCore {
             //一般情况下，如果第二次获取成功，那么此时缓存多半是刚更新，此时忽略主动更新功能
             value = cacheTemplate.get(key);
             if (value != null) {
-                logger.debug("二次获取值成功,key={}", key);
+                if (plugin != null) plugin.hitAgain(id, cache, key, args);
                 unlock(cache, key);
                 return value;
             }
         }
+        if (plugin != null) plugin.miss(id, cache, key, args);
         logger.debug("执行真正获取数据方法={}", key);
         value = task.proceed();
         //存入redis
@@ -86,6 +91,22 @@ public class CacheCore {
 
         return value;
 
+    }
+
+    /**
+     * 删除缓存
+     * 用于update时
+     *
+     * @param id
+     * @param args
+     * @return
+     */
+    public boolean del(String id, Map<String, Object> args) throws Throwable {
+        Cache cache = getCache(id);
+        if (cache == null || !cache.del()) return false;
+        //获取key
+        String key = engine.express(cache.key(), args);
+        return cacheTemplate.del(key);
     }
 
     /**
@@ -218,5 +239,9 @@ public class CacheCore {
 
     public void setSync(boolean sync) {
         this.sync = sync;
+    }
+
+    public void setPlugin(StaticsPlugin plugin) {
+        this.plugin = plugin;
     }
 }

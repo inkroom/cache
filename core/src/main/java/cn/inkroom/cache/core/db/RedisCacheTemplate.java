@@ -31,4 +31,10 @@ public class RedisCacheTemplate implements CacheTemplate {
         Long expire = template.getExpire(key);
         return expire == null ? -2 : expire;
     }
+
+    @Override
+    public boolean del(String key) throws Throwable {
+        Boolean b = template.delete(key);
+        return b == null ? false : b;
+    }
 }

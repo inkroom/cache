@@ -33,4 +33,13 @@ public interface CacheTemplate {
      * @throws Throwable
      */
     long ttl(String key) throws Throwable;
+
+    /**
+     * 删除key
+     *
+     * @param key key
+     * @return
+     * @throws Throwable
+     */
+    boolean del(String key) throws Throwable;
 }
