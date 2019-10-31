@@ -3,6 +3,7 @@ package cn.inkroom.cache.core;
 import cn.inkroom.cache.core.annotation.Cache;
 import cn.inkroom.cache.core.db.CacheTemplate;
 import cn.inkroom.cache.core.plugins.StaticsPlugin;
+import cn.inkroom.cache.core.script.AviatorEngine;
 import cn.inkroom.cache.core.script.ScriptEngine;
 import cn.inkroom.cache.core.script.SpElEngine;
 import cn.inkroom.cache.core.sync.SyncLock;
@@ -29,7 +30,7 @@ public class CacheCore {
     private Map<String, Cache> methodCacheMap = new HashMap<>();
 
     private ExecutorService executor;
-    private ScriptEngine engine = new SpElEngine();
+    private ScriptEngine engine = new AviatorEngine();
 
     private CacheTemplate cacheTemplate;
     private boolean sync = false;
@@ -66,7 +67,7 @@ public class CacheCore {
         Object value = getValue(key, cache, task);
 
         if (value != null) {
-            if (plugin != null) plugin.hit(id, cache, key, args);
+            plugin(id, cache, key, args, true);
             return value;
         }
         //是否启用锁
@@ -75,13 +76,12 @@ public class CacheCore {
             //一般情况下，如果第二次获取成功，那么此时缓存多半是刚更新，此时忽略主动更新功能
             value = cacheTemplate.get(key);
             if (value != null) {
-                if (plugin != null) plugin.hitAgain(id, cache, key, args);
+                plugin(id, cache, key, args, false);
                 unlock(cache, key);
                 return value;
             }
         }
-        if (plugin != null) plugin.miss(id, cache, key, args);
-        logger.debug("执行真正获取数据方法={}", key);
+        plugin(id, cache, key, args, null);
         value = task.proceed();
         //存入redis
         if (isSave(cache.condition(), args, value)) {
@@ -90,6 +90,24 @@ public class CacheCore {
         unlock(cache, key);
 
         return value;
+
+    }
+
+    /**
+     * @param id
+     * @param cache
+     * @param key
+     * @param args
+     * @param first null代表穿透，true第一次命中，false第二次命中
+     */
+    private void plugin(String id, Cache cache, String key, Map<String, Object> args, Boolean first) {
+        if (plugin != null) {
+            if (first == null) plugin.miss(id, cache, key, args);
+            if (first == Boolean.TRUE) plugin.hit(id, cache, key, args);
+            else if (first == Boolean.FALSE) {
+                plugin.hitAgain(id, cache, key, args);
+            }
+        }
 
     }
 

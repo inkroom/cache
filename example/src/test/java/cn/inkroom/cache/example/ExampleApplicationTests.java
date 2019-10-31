@@ -1,5 +1,6 @@
 package cn.inkroom.cache.example;
 
+import cn.inkroom.cache.example.bean.Cache;
 import cn.inkroom.cache.example.dao.CacheDao;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -8,11 +9,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
 @SpringBootTest
+@Transactional
+@Rollback
 class ExampleApplicationTests {
     @Autowired
     private CacheDao dao;
@@ -48,6 +54,7 @@ class ExampleApplicationTests {
             countDownLatch.countDown();
         }
         all.await();
+        logger.debug("list={}", dao.list(2, 4));
     }
 
     /**
@@ -105,4 +112,26 @@ class ExampleApplicationTests {
 
     }
 
+    /**
+     * 测试删除功能
+     */
+    @Test
+    void testInsert() {
+
+        //创建一个缓存
+        int key = new Random().nextInt();
+        dao.list(key, 4);
+
+        Assertions.assertTrue(template.hasKey("page_" + key));
+
+        Cache cache = new Cache();
+        cache.setId(33223);
+        cache.setAge(key);
+        cache.setName("32233d但是");
+        cache.setType(4);
+
+        dao.insert(cache);
+
+        Assertions.assertFalse(template.hasKey("page_" + key));
+    }
 }
