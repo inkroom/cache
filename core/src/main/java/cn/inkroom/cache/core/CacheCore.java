@@ -5,12 +5,12 @@ import cn.inkroom.cache.core.db.CacheTemplate;
 import cn.inkroom.cache.core.plugins.StaticsPlugin;
 import cn.inkroom.cache.core.script.AviatorEngine;
 import cn.inkroom.cache.core.script.ScriptEngine;
-import cn.inkroom.cache.core.script.SpElEngine;
-import cn.inkroom.cache.core.sync.SyncLock;
+import cn.inkroom.cache.core.sync.SyncTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
  */
 public class CacheCore {
     private Logger logger = LoggerFactory.getLogger(getClass());
-    private SyncLock lock;
+    private SyncTool syncTool;
 
     private Map<String, Cache> methodCacheMap = new HashMap<>();
 
@@ -51,11 +51,13 @@ public class CacheCore {
     /**
      * 从缓存中query
      *
-     * @param args 参数
-     * @param id   对应方法的全路径
+     * @param args    参数
+     * @param id      对应方法的全路径
+     * @param task    获取实际数据的回调
+     * @param wrapper 对返回值的额外处理，用于绕开部分框架可能存在的对数据的包装
      * @return
      */
-    public Object query(String id, Map<String, Object> args, Task task) throws Throwable {
+    public Object query(String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
 
         Cache cache = getCache(id);
         if (cache == null) {
@@ -84,14 +86,13 @@ public class CacheCore {
         plugin(id, cache, key, args, null);
         value = task.proceed();
         //存入redis
-        if (isSave(cache.condition(), args, value)) {
-            cacheTemplate.set(key, value, getTtl(cache));
+        if (isSave(cache, args, value)) {
+            cacheTemplate.set(key, wrapper == null ? value : wrapper.wrapper(value), getTtl(cache));
         }
         unlock(cache, key);
-
         return value;
-
     }
+
 
     /**
      * @param id
@@ -132,23 +133,22 @@ public class CacheCore {
      * <p>通过 #params 访问参数</p>
      * <p>通过 #rv 访问结果</p>
      *
-     * @param script      脚本
+     * @param cache       配置
      * @param params      参数
      * @param returnValue 可能要缓存的结果
      * @return
      * @see Cache#condition()
      */
-    private boolean isSave(String script, Map<String, Object> params, Object returnValue) {
-        logger.debug("condition脚本={}", script);
-        if ("".equals(script)) return true;
-
-
+    private boolean isSave(Cache cache, Map<String, Object> params, Object returnValue) {
+        if (returnValue == null && !cache.nullable()) return false;
+        if ("".equals(cache.condition())) return true;
+        logger.debug("condition脚本={}", cache.condition());
         Map<String, Object> args = new HashMap<>();
         args.put("params", params);
         args.put("rv", returnValue);
 
         logger.debug("condition的context={}", args);
-        return engine.booleanExpress(script, args);
+        return engine.booleanExpress(cache.condition(), args);
     }
 
     /**
@@ -194,7 +194,7 @@ public class CacheCore {
 
     private boolean lock(Cache cache, String key) {
         if (cache.sync() || sync) {
-            lock.lock(key);
+            syncTool.lock(key);
             return true;
         }
         return false;
@@ -202,10 +202,17 @@ public class CacheCore {
 
     private void unlock(Cache cache, String key) {
         if (cache.sync() || sync) {
-            lock.unlock(key);
+            syncTool.unlock(key);
         }
     }
 
+    /**
+     * 获取Cache注解和返回值类型
+     *
+     * @param id
+     * @return 第一个为cache，第二个为class
+     * @throws Throwable
+     */
     private Cache getCache(String id) throws Throwable {
 
         logger.debug("缓存的cache={}", methodCacheMap);
@@ -235,12 +242,12 @@ public class CacheCore {
         this.engine = engine;
     }
 
-    public SyncLock getLock() {
-        return lock;
+    public SyncTool getSyncTool() {
+        return syncTool;
     }
 
-    public void setLock(SyncLock lock) {
-        this.lock = lock;
+    public void setSyncTool(SyncTool syncTool) {
+        this.syncTool = syncTool;
     }
 
     public CacheTemplate getCacheTemplate() {
@@ -262,4 +269,5 @@ public class CacheCore {
     public void setPlugin(StaticsPlugin plugin) {
         this.plugin = plugin;
     }
+
 }

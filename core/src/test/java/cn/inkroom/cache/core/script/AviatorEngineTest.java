@@ -69,6 +69,6 @@ private Logger log = LoggerFactory.getLogger(getClass());
         for (int i = 0; i < count; i++) {
             booleanExpress();
         }
-        log.debug("js执行{}次，耗时{}", count, (System.currentTimeMillis() - start));
+        log.debug("AviatorEngine执行{}次，耗时{}", count, (System.currentTimeMillis() - start));
     }
 }

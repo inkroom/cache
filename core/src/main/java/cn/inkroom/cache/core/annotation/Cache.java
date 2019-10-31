@@ -1,7 +1,7 @@
 package cn.inkroom.cache.core.annotation;
 
-import cn.inkroom.cache.core.sync.JdkSyncLock;
-import cn.inkroom.cache.core.sync.SyncLock;
+import cn.inkroom.cache.core.sync.JdkSyncTool;
+import cn.inkroom.cache.core.sync.SyncTool;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -56,6 +56,7 @@ public @interface Cache {
 
     /**
      * 是否缓存空值
+     * <p>当数据不为null时，是否缓存将由condition决定</p>
      *
      * @return
      */
@@ -75,7 +76,7 @@ public @interface Cache {
      *
      * @return
      */
-    Class<? extends SyncLock> syncClass() default JdkSyncLock.class;
+    Class<? extends SyncTool> syncClass() default JdkSyncTool.class;
 
     /**
      * 是否在有效期添加一个随机值，避免缓存雪崩

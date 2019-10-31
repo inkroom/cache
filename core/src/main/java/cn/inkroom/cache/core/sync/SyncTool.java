@@ -6,7 +6,7 @@ package cn.inkroom.cache.core.sync;
  * @author 墨盒
  * @date 2019/10/26
  */
-public interface SyncLock {
+public interface SyncTool {
     /**
      * 上锁
      *

@@ -11,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author 墨盒
  * @date 2019/10/26
  */
-public class JdkSyncLock implements SyncLock {
+public class JdkSyncTool implements SyncTool {
 
     private Map<String, Lock> lockMap = new HashMap<>();
 

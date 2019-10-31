@@ -1,5 +1,7 @@
 package cn.inkroom.cache.example.bean;
 
+import java.util.Objects;
+
 /**
  * @author 墨盒
  * @date 2019/10/26
@@ -51,5 +53,21 @@ public class Cache
                 ", type=" + type +
                 ", age=" + age +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Cache cache = (Cache) o;
+        return id == cache.id &&
+                type == cache.type &&
+                age == cache.age &&
+                name.equals(cache.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, type, age);
     }
 }
