@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.cglib.proxy.Enhancer;
+import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -40,21 +41,24 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
 
         boolean hasCache = false;
 
-
+        LocalVariableTableParameterNameDiscoverer u = new LocalVariableTableParameterNameDiscoverer();
         for (int i = 0; i < methods.length; i++) {
             Cache cache = methods[i].getAnnotation(Cache.class);
             if (cache != null) {
                 hasCache = true;
-                //获取参数名
-                Parameter[] parameters = methods[i].getParameters();
-                String[] names = new String[parameters.length];
-                for (int j = 0; j < parameters.length; j++) {
-                    Param param = parameters[j].getAnnotation(Param.class);
-                    if (param != null) names[j] = param.value();
-                    else names[j] = "param" + (j + 1);
-                }
+                String[] parameterNames = u.getParameterNames(methods[i]);
+//                logger.debug("p={}",Arrays.toString(parameterNames));
+//                //获取参数名
+//                Parameter[] parameters = methods[i].getParameters();
+//                String[] names = new String[parameters.length];
+//                for (int j = 0; j < parameters.length; j++) {
+//                    logger.debug("pName={}",parameters[i].getName());
+//                    Param param = parameters[j].getAnnotation(Param.class);
+//                    if (param != null) names[j] = param.value();
+//                    else names[j] = "param" + (j + 1);
+//                }
 
-                paramNames.put(methods[i].toString(), names);
+                paramNames.put(methods[i].toString(), parameterNames);
 
             }
             cacheMap.put(methods[i].getName(), cache);

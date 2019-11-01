@@ -18,7 +18,7 @@ public class WaitProxyExampleBean {
     }
 
     @Cache(key = "name+'-'+age")
-    public boolean param(@Param("name") String name, @Param("age") int age) {
+    public boolean param(String name, int age) {
 
         return true;
     }
