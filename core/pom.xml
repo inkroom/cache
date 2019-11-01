@@ -71,6 +71,7 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-expression</artifactId>
             <version>5.2.0.RELEASE</version>
+            <scope>provided</scope>
         </dependency>
 
 

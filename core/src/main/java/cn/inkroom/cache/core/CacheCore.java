@@ -60,6 +60,10 @@ public class CacheCore {
     public Object query(String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
 
         Cache cache = getCache(id);
+        return query(cache, id, args, task, wrapper);
+    }
+
+    public Object query(Cache cache, String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
         if (cache == null) {
             return task.proceed();
         }
@@ -92,7 +96,6 @@ public class CacheCore {
         unlock(cache, key);
         return value;
     }
-
 
     /**
      * @param id

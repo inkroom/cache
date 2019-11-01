@@ -2,6 +2,7 @@ package cn.inkroom.cache.spring;
 
 import cn.inkroom.cache.core.CacheCore;
 import cn.inkroom.cache.core.Task;
+import cn.inkroom.cache.core.annotation.Cache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cglib.proxy.MethodInterceptor;
@@ -10,6 +11,7 @@ import org.springframework.cglib.proxy.MethodProxy;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class CacheInvocationHandler implements InvocationHandler, MethodInterceptor {
@@ -19,9 +21,21 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
     private Object target;
     private CacheCore core;
 
+    private Map<String, Cache> cacheMap;
+    private Map<String, String[]> paramName;
+
     public CacheInvocationHandler(Object target, CacheCore core) {
         this.target = target;
         this.core = core;
+        cacheMap = new HashMap<>();
+    }
+
+    public void setParamName(Map<String, String[]> paramName) {
+        this.paramName = paramName;
+    }
+
+    public void setCacheMap(Map<String, Cache> cacheMap) {
+        this.cacheMap = cacheMap;
     }
 
     public void setCore(CacheCore core) {
@@ -30,7 +44,7 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
     public CacheInvocationHandler(Object target) {
         this.target = target;
-        this.core =new CacheCore();
+        this.core = new CacheCore();
     }
 
     @Override
@@ -41,20 +55,22 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
     @Override
     public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
-        logger.debug("执行cglib");
+        Cache cache = cacheMap.get(method.getName());
+        if (cache == null) return methodProxy.invokeSuper(o, objects);
         //拼接id
-        String id = o.getClass().getName() + "." + method.getName();
-        Map<String, Object> args = getArgs(objects);
+        String id = o.getClass().getSuperclass().getName() + "." + method.getName();
+        Map<String, Object> args = getArgs(method, objects);
 
-        return core.query(id, args, () -> method.invoke(o, objects), null);
+        return core.query(cache, id, args, () -> methodProxy.invokeSuper(o, objects), null);
     }
 
 
-    private Map<String, Object> getArgs(Object[] args) {
+    private Map<String, Object> getArgs(Method method, Object[] args) {
 
         Map<String, Object> map = new HashMap<>();
+        String[] names = paramName.get(method.toString());
         for (int i = 0; i < args.length; i++) {
-            map.put("param" + (i + 1), args[i]);
+            map.put(names[i], args[i]);
         }
 
         return map;
