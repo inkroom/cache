@@ -5,8 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-@Component
-public class WaitProxyExampleBean {
+public class WaitProxyExampleBean implements ExampleInterface {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -22,4 +21,17 @@ public class WaitProxyExampleBean {
 
         return true;
     }
+
+    /**
+     * 用于测试interface没有的方法
+     * @param name
+     * @param age
+     * @return
+     */
+    @Cache(key = "name+'='+age")
+    public boolean out(String name, int age) {
+
+        return true;
+    }
+
 }

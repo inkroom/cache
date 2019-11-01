@@ -22,7 +22,7 @@ class ContextTest {
     private RedisTemplate template;
     private Logger logger = LoggerFactory.getLogger(getClass());
     @Autowired
-    private WaitProxyExampleBean bean;
+    private ExampleInterface bean;
 
     @BeforeEach
     void before() {
@@ -44,6 +44,8 @@ class ContextTest {
         bean.param(name, age);
 
         Assertions.assertTrue(template.hasKey(name + "-" + age));
+
+//        bean.out(name, age);
     }
 
 }

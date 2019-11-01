@@ -21,12 +21,17 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
+    private boolean cglib = true;//是否使用cglib，
 
     public CacheBeanPostProcessor() {
         logger.debug("创建");
     }
 
     private CacheCore core;
+
+    public void setCglib(boolean cglib) {
+        this.cglib = cglib;
+    }
 
     public CacheBeanPostProcessor(CacheCore core) {
         this.core = core;
@@ -40,7 +45,7 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
         Map<String, String[]> paramNames = new HashMap<>();
 
         boolean hasCache = false;
-
+        Class beanClass = bean.getClass();
         LocalVariableTableParameterNameDiscoverer u = new LocalVariableTableParameterNameDiscoverer();
         for (int i = 0; i < methods.length; i++) {
             Cache cache = methods[i].getAnnotation(Cache.class);
@@ -57,8 +62,12 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
 //                    if (param != null) names[j] = param.value();
 //                    else names[j] = "param" + (j + 1);
 //                }
+//由于jdk 代理传递的参数method是接口的，cglib的是方法本身的，因此这里使用的key不能带有class
+                String methodName = methods[i].toString();
 
-                paramNames.put(methods[i].toString(), parameterNames);
+                methodName = methodName.substring(methodName.lastIndexOf(".") + 1);
+
+                paramNames.put(methodName, parameterNames);
 
             }
             cacheMap.put(methods[i].getName(), cache);
@@ -69,19 +78,30 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
             return bean;
         }
 
+
         CacheInvocationHandler h = new CacheInvocationHandler(bean, core);
 
         h.setCacheMap(cacheMap);
         h.setParamName(paramNames);
+        h.setClassName(beanClass.getName());
 
-        logger.debug("[cache] 创建代理对象");
+        logger.debug("interface={}", Arrays.toString(beanClass.getInterfaces()));
+
+        if (!cglib) {//使用jdk代理
+            Object value = Proxy.newProxyInstance(beanClass
+                    .getClassLoader(), beanClass.getInterfaces(), h);
+
+            logger.debug("proxy={}", value);
+
+            return value;
+        }
+
+//        logger.debug("[cache] 创建代理对象");
         Enhancer enhancer = new Enhancer();
         enhancer.setSuperclass(bean.getClass());
         enhancer.setCallback(h);
 
         return enhancer.create();
-
-//        return Proxy.newProxyInstance(bean.getClass().getClassLoader(), bean.getClass().getClasses(),new CacheInvocationHandler(bean));
     }
 
     private Cache getCache(Method method) {

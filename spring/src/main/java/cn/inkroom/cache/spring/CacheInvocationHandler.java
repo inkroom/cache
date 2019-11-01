@@ -24,6 +24,8 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
     private Map<String, Cache> cacheMap;
     private Map<String, String[]> paramName;
 
+    private String className;
+
     public CacheInvocationHandler(Object target, CacheCore core) {
         this.target = target;
         this.core = core;
@@ -32,6 +34,10 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
     public void setParamName(Map<String, String[]> paramName) {
         this.paramName = paramName;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
     }
 
     public void setCacheMap(Map<String, Cache> cacheMap) {
@@ -49,8 +55,14 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        logger.debug("代理对象");
-        return null;
+
+        Cache cache = cacheMap.get(method.getName());
+        if (cache == null) return method.invoke(target, args);
+        //拼接id
+        String id = className + "." + method.getName();
+        Map<String, Object> argsMap = getArgs(method, args);
+
+        return core.query(cache, id, argsMap, () -> method.invoke(target, args), null);
     }
 
     @Override
@@ -58,7 +70,7 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
         Cache cache = cacheMap.get(method.getName());
         if (cache == null) return methodProxy.invokeSuper(o, objects);
         //拼接id
-        String id = o.getClass().getSuperclass().getName() + "." + method.getName();
+        String id = className + "." + method.getName();
         Map<String, Object> args = getArgs(method, objects);
 
         return core.query(cache, id, args, () -> methodProxy.invokeSuper(o, objects), null);
@@ -67,8 +79,11 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
     private Map<String, Object> getArgs(Method method, Object[] args) {
 
+        String methodName = method.toString();
+        methodName = methodName.substring(methodName.lastIndexOf(".") + 1);
+
         Map<String, Object> map = new HashMap<>();
-        String[] names = paramName.get(method.toString());
+        String[] names = paramName.get(methodName);
         for (int i = 0; i < args.length; i++) {
             map.put(names[i], args[i]);
         }
