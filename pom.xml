@@ -24,7 +24,7 @@
         <module>example</module>
         <module>mybatis</module>
         <module>spring</module>
-        <module>cache-starter</module>
+        <module>starter</module>
     </modules>
 
     <dependencyManagement>

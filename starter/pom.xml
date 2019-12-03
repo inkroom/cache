@@ -7,8 +7,8 @@
         <artifactId>parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>cache-starter</artifactId>
-    <name>cache-starter</name>
+    <artifactId>starter</artifactId>
+    <name>starter</name>
     <description>cache for SpringBoot</description>
 
     <properties>
