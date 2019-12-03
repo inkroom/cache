@@ -77,21 +77,24 @@ public class CacheCore {
         Object value = getValue(key, cache, task);
 
         if (value != null) {
-            plugin(id, cache, key, args, true);
+            plugin(id, cache, key, args, 1);
             return value;
         }
+        //第一次穿透
+        plugin(id, cache, key, args, 2);
         //是否启用锁
         if (lock(cache, key)) {
             //二次获取值
             //一般情况下，如果第二次获取成功，那么此时缓存多半是刚更新，此时忽略主动更新功能
             value = cacheTemplate.get(key);
             if (value != null) {
-                plugin(id, cache, key, args, false);
+                //第二次命中
+                plugin(id, cache, key, args, 3);
                 unlock(cache, key);
                 return value;
             }
         }
-        plugin(id, cache, key, args, null);
+        plugin(id, cache, key, args, 4);
         value = task.proceed();
         //存入redis
         if (isSave(cache, args, value)) {
@@ -106,14 +109,23 @@ public class CacheCore {
      * @param cache
      * @param key
      * @param args
-     * @param first null代表穿透，true第一次命中，false第二次命中
+     * @param flag  1第一次命中，2第一次穿透，3第二次命中，4第二次穿透
      */
-    private void plugin(String id, Cache cache, String key, Map<String, Object> args, Boolean first) {
+    private void plugin(String id, Cache cache, String key, Map<String, Object> args, int flag) {
         if (plugin != null) {
-            if (first == null) plugin.miss(id, cache, key, args);
-            if (first == Boolean.TRUE) plugin.hit(id, cache, key, args);
-            else if (first == Boolean.FALSE) {
-                plugin.hitAgain(id, cache, key, args);
+            switch (flag) {
+                case 1:
+                    plugin.hit(id, cache, key, args, true);
+                    break;
+                case 2:
+                    plugin.miss(id, cache, key, args, true);
+                    break;
+                case 3:
+                    plugin.hit(id, cache, key, args, false);
+                    break;
+                case 4:
+                    plugin.miss(id, cache, key, args, false);
+                    break;
             }
         }
 

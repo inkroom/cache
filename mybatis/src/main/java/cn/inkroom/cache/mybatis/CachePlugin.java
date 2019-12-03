@@ -3,7 +3,9 @@ package cn.inkroom.cache.mybatis;
 import cn.inkroom.cache.core.CacheCore;
 import cn.inkroom.cache.core.ReturnValueWrapper;
 import cn.inkroom.cache.core.annotation.Cache;
+import cn.inkroom.cache.core.config.CacheProperties;
 import cn.inkroom.cache.core.sync.JdkSyncTool;
+import cn.inkroom.cache.core.sync.SyncTool;
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.resultset.ResultSetHandler;
@@ -15,6 +17,7 @@ import org.apache.ibatis.session.RowBounds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Statement;
 import java.util.*;
@@ -133,7 +136,25 @@ public class CachePlugin implements Interceptor {
     public void setProperties(Properties properties) {
         if (properties.get("syncClass") == null) {
             this.core.setSyncTool(new JdkSyncTool());
+        } else {
+            try {
+                this.core.setSyncTool(((SyncTool) Class.forName(properties.get("syncClass").toString()).getDeclaredConstructor().newInstance()));
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
         }
-        this.core.setSync(Boolean.parseBoolean(properties.getOrDefault("syncable", false).toString()));
+
+        CacheProperties p = new CacheProperties();
+        p.setKeyPrefix(properties.getProperty("keyPrefix"));
+        p.setSync(Boolean.parseBoolean(properties.getOrDefault("sync", false).toString()));
+        this.core.setProperties(p);
     }
 }

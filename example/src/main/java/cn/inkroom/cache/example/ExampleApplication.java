@@ -35,18 +35,13 @@ public class ExampleApplication {
             private Logger log = LoggerFactory.getLogger(getClass());
 
             @Override
-            public void miss(String id, Cache cache, String key, Map<String, Object> args) {
+            public void miss(String id, Cache cache, String key, Map<String, Object> args, boolean first) {
                 log.debug("缓存穿透，key={}，方法={}", key, id);
             }
 
             @Override
-            public void hit(String id, Cache cache, String key, Map<String, Object> args) {
+            public void hit(String id, Cache cache, String key, Map<String, Object> args, boolean first) {
                 log.debug("缓存命中，key={}，方法={}", key, id);
-            }
-
-            @Override
-            public void hitAgain(String id, Cache cache, String key, Map<String, Object> args) {
-                log.debug("缓存二次命中，key={}，方法={}", key, id);
             }
         });
         return core;

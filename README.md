@@ -119,19 +119,15 @@ mvn package
         // 请自行根据业务需求实现
         return new cn.inkroom.cache.core.plugins.StaticsPlugin() {
             @Override
-            public void miss(String id, Cache cache, String key, Map<String, Object> args) {
+            public void miss(String id, Cache cache, String key, Map<String, Object> args,boolean first) {
                 
             }
 
             @Override
-            public void hit(String id, Cache cache, String key, Map<String, Object> args) {
+            public void hit(String id, Cache cache, String key, Map<String, Object> args,boolean first) {
 
             }
 
-            @Override
-            public void hitAgain(String id, Cache cache, String key, Map<String, Object> args) {
-
-            }
         };
     }
     @Bean

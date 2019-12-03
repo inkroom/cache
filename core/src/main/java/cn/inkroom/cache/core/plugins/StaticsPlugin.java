@@ -15,8 +15,9 @@ public interface StaticsPlugin {
      * @param cache 缓存配置信息
      * @param key   实际访问的key
      * @param args  本次访问传递的上下文参数
+     * @param first 是否是在第一次获取缓存时miss，未启用同步的情况下，该值永远为true
      */
-    void miss(String id, Cache cache, String key, Map<String, Object> args);
+    void miss(String id, Cache cache, String key, Map<String, Object> args, boolean first);
 
     /**
      * 首次缓存命中
@@ -25,16 +26,8 @@ public interface StaticsPlugin {
      * @param cache 缓存配置信息
      * @param key   实际访问的key
      * @param args  本次访问传递的上下文参数
+     * @param first 是否是在第一次获取缓存时miss，未启用同步的情况下，该值永远为true
      */
-    void hit(String id, Cache cache, String key, Map<String, Object> args);
+    void hit(String id, Cache cache, String key, Map<String, Object> args, boolean first);
 
-    /**
-     * 第二次访问缓存命中，仅在启用了同步的情况下会被调用
-     *
-     * @param id    唯一id，方法全路径
-     * @param cache 缓存配置信息
-     * @param key   实际访问的key
-     * @param args  本次访问传递的上下文参数
-     */
-    void hitAgain(String id, Cache cache, String key, Map<String, Object> args);
 }
