@@ -24,6 +24,7 @@
         <module>example</module>
         <module>mybatis</module>
         <module>spring</module>
+        <module>cache-starter</module>
     </modules>
 
     <dependencyManagement>
@@ -45,7 +46,11 @@
                 <artifactId>spring-context</artifactId>
                 <version>5.2.0.RELEASE</version>
             </dependency>
-
+            <dependency>
+                <groupId>cn.inkroom.cache</groupId>
+                <artifactId>spring</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>cn.inkroom.cache</groupId>
                 <artifactId>core</artifactId>

@@ -39,43 +39,111 @@ mvn package
 
 #### spring
 
-#### SpringBoot
+使用以下配置方案
 
----
-更多使用方法见 example
+```xml
 
-#### 注册
-使用spring注册CachePlugin即可
+    <bean class="cn.inkroom.cache.spring.CacheBeanPostProcessor">
+        <constructor-arg ref="cacheCore"/>
+    </bean>
 
-SpringBoot中如下
+    <bean id="cacheCore" class="cn.inkroom.cache.core.CacheCore">
+        <constructor-arg name="cacheTemplate">
+            <bean class="cn.inkroom.cache.core.db.RedisCacheTemplate">
+                <constructor-arg ref="redisTemplate"/>
+            </bean>
+        </constructor-arg>
+    </bean>
 
-```java
+    <bean id="configuration" class="org.springframework.data.redis.connection.RedisStandaloneConfiguration">
+        <constructor-arg name="hostName" value="127.0.0.1"/>
+        <constructor-arg name="port" value="6379"/>
+    </bean>
 
- @Bean
-    public CacheCore cacheCore(RedisTemplate redisTemplate) {
-        CacheCore core = new CacheCore();
-// 自定义缓存使用方案
-        core.setCacheTemplate(new RedisCacheTemplate(redisTemplate));
-    //自定义统计
-        core.setPlugin(new StaticsPlugin() {});
-//自定义脚本解析引擎
-//        core.setEngine();
-//自定义加锁方案
-//        core.setSyncTool();
-//设置全局同步配置，会被注解中的配置属性覆盖
-//        core.setSync();
-        return core;
-    }
+    <!-- Spring-redis连接池管理工厂 -->
+    <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+        <constructor-arg ref="configuration"/>
+    </bean>
 
-@Bean
-public CachePlugin cachePlugin(CacheCore core) {
-    CachePlugin plugin = new CachePlugin();
-    plugin.setProperties(new Properties());
-    plugin.setCore(core);
-    return plugin;
-}
+    <!-- redis template definition -->
+    <bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+        <property name="connectionFactory" ref="jedisConnectionFactory"/>
+        <property name="keySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+        </property>
+        <property name="valueSerializer">
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer"/>
+        </property>
+        <property name="hashKeySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+        </property>
+        <property name="hashValueSerializer">
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer"/>
+        </property>
+        <!--开启事务  -->
+    </bean>
+<!--    根据该接口自行实现，注入到core中即可-->
+<!--    <bean class="cn.inkroom.cache.core.plugins.StaticsPlugin" />-->
 
 ```
+
+
+#### SpringBoot
+
+可注入ScriptEngine、SyncTool、CacheTemplate、StaticsPlugin
+
+样例
+```java
+   @Bean
+    public cn.inkroom.cache.core.db.CacheTemplate redisCacheTemplate(RedisTemplate<Object, Object> template) {
+        //默认使用redis做缓存引擎    
+        return new cn.inkroom.cache.core.db.RedisCacheTemplate(template);
+    }
+
+    @Bean
+    public cn.inkroom.cache.core.script.ScriptEngine scriptEngine() {                                                                     
+        //默认使用该引擎，不建议修改
+        return new cn.inkroom.cache.core.script.AviatorEngine();
+    }
+
+    @Bean
+    public cn.inkroom.cache.core.plugins.StaticsPlugin staticsPlugin() {
+        // 请自行根据业务需求实现
+        return new cn.inkroom.cache.core.plugins.StaticsPlugin() {
+            @Override
+            public void miss(String id, Cache cache, String key, Map<String, Object> args) {
+                
+            }
+
+            @Override
+            public void hit(String id, Cache cache, String key, Map<String, Object> args) {
+
+            }
+
+            @Override
+            public void hitAgain(String id, Cache cache, String key, Map<String, Object> args) {
+
+            }
+        };
+    }
+    @Bean
+    public cn.inkroom.cache.core.sync.SyncTool syncTool(){
+        // 默认使用该加锁方案，可自行替换
+        return new cn.inkroom.cache.core.sync.JdkSyncTool();
+    }
+
+```
+
+配置项
+
+```properties
+#  启用同步锁，可尽可能减少数据库访问次数
+cn.cache.sync=true
+```
+
+
+---
+更多使用方法见 example或测试用例
 
 #### 注解
 
