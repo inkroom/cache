@@ -11,11 +11,14 @@ import cn.inkroom.cache.core.sync.JdkSyncTool;
 import cn.inkroom.cache.core.sync.SyncTool;
 import cn.inkroom.cache.spring.CacheBeanPostProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import javax.annotation.Resource;
 import java.util.Map;
 
 /**
@@ -25,61 +28,38 @@ import java.util.Map;
 @Configuration
 @EnableConfigurationProperties(CacheProperties.class)
 public class CacheAutoConfiguration {
-
+    @Autowired
+    @Qualifier("redisTemplate")
+//            @Resource(name = "redisTemplate")
+            RedisTemplate<Object, Object> template;
 
     @Bean
-    public cn.inkroom.cache.core.db.CacheTemplate redisCacheTemplate(RedisTemplate<Object, Object> template) {
+    @ConditionalOnMissingBean(CacheTemplate.class)
+    public cn.inkroom.cache.core.db.CacheTemplate redisCacheTemplate() {
         return new cn.inkroom.cache.core.db.RedisCacheTemplate(template);
     }
 
     @Bean
-    public cn.inkroom.cache.core.script.ScriptEngine scriptEngine() {
-        return new cn.inkroom.cache.core.script.AviatorEngine();
+    @ConditionalOnMissingBean(SyncTool.class)
+    public SyncTool syncTool() {
+        return new JdkSyncTool();
     }
-
-    @Bean
-    public cn.inkroom.cache.core.plugins.StaticsPlugin staticsPlugin() {
-        return new cn.inkroom.cache.core.plugins.StaticsPlugin() {
-            @Override
-            public void miss(String id, Cache cache, String key, Map<String, Object> args) {
-
-            }
-
-            @Override
-            public void hit(String id, Cache cache, String key, Map<String, Object> args) {
-
-            }
-
-            @Override
-            public void hitAgain(String id, Cache cache, String key, Map<String, Object> args) {
-
-            }
-        };
-    }
-    @Bean
-    public cn.inkroom.cache.core.sync.SyncTool syncTool(){
-        return new cn.inkroom.cache.core.sync.JdkSyncTool();
-    }
-
-
-
 
     @Bean
     public CacheCore cacheCore(CacheTemplate cacheTemplate, CacheProperties properties,
                                @Autowired(required = false) ScriptEngine engine,
                                @Autowired(required = false) StaticsPlugin plugin,
-                               @Autowired(required = false) SyncTool tool) {
+                               SyncTool tool) {
 
         CacheCore core = new CacheCore();
         core.setCacheTemplate(cacheTemplate);
-        core.setEngine(engine);
-        core.setSyncTool(tool);
+        if (engine != null)
+            core.setEngine(engine);
+        if (tool != null)
+            core.setSyncTool(tool);
 
-        if (properties.isSync()) {
-            core.setSync(properties.isSync());
-        }
+        core.setProperties(properties);
         core.setPlugin(plugin);
-
         return core;
     }
 

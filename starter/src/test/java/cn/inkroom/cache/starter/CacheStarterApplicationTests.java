@@ -1,23 +1,31 @@
 package cn.inkroom.cache.starter;
 
+import cn.inkroom.cache.starter.config.CacheProperties;
 import cn.inkroom.cache.starter.service.TestServiceExample;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+@ExtendWith(SpringExtension.class)
 @SpringBootTest
 class CacheStarterApplicationTests {
     @Autowired
+    @Qualifier("redisTemplate")
     private RedisTemplate template;
     private Logger logger = LoggerFactory.getLogger(getClass());
     @Autowired
     private TestServiceExample bean;
+    @Autowired
+    private CacheProperties properties;
 
     @BeforeEach
     void before() {
@@ -30,6 +38,7 @@ class CacheStarterApplicationTests {
     @Test
     void test() {
         logger.debug("[数据={}]", bean.toString());
+        Assertions.assertTrue(template.hasKey(properties.getKeyPrefix() + "toString"));
     }
 
     @Test
@@ -38,7 +47,7 @@ class CacheStarterApplicationTests {
         int age = 32;
         bean.param(name, age);
 
-        Assertions.assertTrue(template.hasKey(name + "-" + age));
+        Assertions.assertTrue(template.hasKey(properties.getKeyPrefix() + name + "-" + age));
 
 //        bean.out(name, age);
     }

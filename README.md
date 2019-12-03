@@ -42,7 +42,11 @@ mvn package
 使用以下配置方案
 
 ```xml
-
+    <!--    一些配置项-->
+    <bean id="cacheProperties" class="cn.inkroom.cache.core.config.CacheProperties">
+        <property name="keyPrefix" value=""/>
+        <property name="sync" value="true"/>
+    </bean>
     <bean class="cn.inkroom.cache.spring.CacheBeanPostProcessor">
         <constructor-arg ref="cacheCore"/>
     </bean>
@@ -53,6 +57,10 @@ mvn package
                 <constructor-arg ref="redisTemplate"/>
             </bean>
         </constructor-arg>
+        <property name="properties" ref="cacheProperties"/>
+        <property name="syncTool">
+            <bean class="cn.inkroom.cache.core.sync.JdkSyncTool"/>
+        </property>
     </bean>
 
     <bean id="configuration" class="org.springframework.data.redis.connection.RedisStandaloneConfiguration">
@@ -139,6 +147,8 @@ mvn package
 ```properties
 #  启用同步锁，可尽可能减少数据库访问次数
 cn.cache.sync=true
+# 统一加在缓存key的前缀
+cn.cache.key-prefix=prefix
 ```
 
 

@@ -1,6 +1,7 @@
 package cn.inkroom.cache.core;
 
 import cn.inkroom.cache.core.annotation.Cache;
+import cn.inkroom.cache.core.config.CacheProperties;
 import cn.inkroom.cache.core.db.CacheTemplate;
 import cn.inkroom.cache.core.plugins.StaticsPlugin;
 import cn.inkroom.cache.core.script.AviatorEngine;
@@ -10,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -32,9 +32,13 @@ public class CacheCore {
     private ExecutorService executor;
     private ScriptEngine engine = new AviatorEngine();
 
-    private CacheTemplate cacheTemplate;
-    private boolean sync = false;
+    private CacheProperties properties;
 
+    public void setProperties(CacheProperties properties) {
+        this.properties = properties;
+    }
+
+    private CacheTemplate cacheTemplate;
     private StaticsPlugin plugin;
 
     public CacheCore() {
@@ -68,7 +72,7 @@ public class CacheCore {
             return task.proceed();
         }
         //获取key
-        String key = engine.express(cache.key(), args);
+        String key = properties.getKeyPrefix() + engine.express(cache.key(), args);
         //从redis中获取值
         Object value = getValue(key, cache, task);
 
@@ -196,7 +200,7 @@ public class CacheCore {
     }
 
     private boolean lock(Cache cache, String key) {
-        if (cache.sync() || sync) {
+        if (cache.sync() || properties.isSync()) {
             syncTool.lock(key);
             return true;
         }
@@ -204,7 +208,7 @@ public class CacheCore {
     }
 
     private void unlock(Cache cache, String key) {
-        if (cache.sync() || sync) {
+        if (cache.sync() || properties.isSync()) {
             syncTool.unlock(key);
         }
     }
@@ -259,14 +263,6 @@ public class CacheCore {
 
     public void setCacheTemplate(CacheTemplate cacheTemplate) {
         this.cacheTemplate = cacheTemplate;
-    }
-
-    public boolean isSync() {
-        return sync;
-    }
-
-    public void setSync(boolean sync) {
-        this.sync = sync;
     }
 
     public void setPlugin(StaticsPlugin plugin) {
