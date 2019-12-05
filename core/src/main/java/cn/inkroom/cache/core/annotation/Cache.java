@@ -71,15 +71,10 @@ public @interface Cache {
      */
     boolean sync() default false;
 
-    /**
-     * 锁的实现类
-     *
-     * @return
-     */
-    Class<? extends SyncTool> syncClass() default JdkSyncTool.class;
 
     /**
      * 是否在有效期添加一个随机值，避免缓存雪崩
+     * 指定随机数的范围
      * <p>长度为2 </p>
      *
      * @return 单位秒

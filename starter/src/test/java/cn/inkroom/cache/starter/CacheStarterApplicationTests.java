@@ -11,21 +11,29 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.nio.charset.StandardCharsets;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 class CacheStarterApplicationTests {
     @Autowired
-    @Qualifier("redisTemplate")
+    @Qualifier(value = "redisTemplate")
     private RedisTemplate template;
     private Logger logger = LoggerFactory.getLogger(getClass());
     @Autowired
     private TestServiceExample bean;
     @Autowired
     private CacheProperties properties;
+
 
     @BeforeEach
     void before() {
