@@ -49,6 +49,7 @@ public class CachePlugin implements Interceptor {
 
     private CacheCore core;
     private Map<String, ReturnValueWrapper> returnValueTypeMap = new HashMap<>();
+    private Map<String, Method> methodStringMap = new HashMap<>();
 
     public void setCore(CacheCore core) {
         this.core = core;
@@ -86,7 +87,8 @@ public class CachePlugin implements Interceptor {
         org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
         //封装参数
         Map<String, Object> args = getArgs(invocation);
-        return core.del(mappedStatement.getId(), args);
+        String id = mappedStatement.getId();
+        return core.del(getCache(id, getMethod(id)), mappedStatement.getId(), args);
     }
 
 
@@ -102,10 +104,8 @@ public class CachePlugin implements Interceptor {
         org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
         //封装参数
         Map<String, Object> args = getArgs(invocation);
-
-
-        String id = invocation.getMethod().toString().replaceAll("^[^ ]+ [^ ]+ ", "");
-        Cache c = getCache(id, invocation.getMethod());
+        String id = mappedStatement.getId();
+        Cache c = getCache(id, getMethod(id));
         if (c == null) return invocation.proceed();
         return core.query(c, id, args, invocation::proceed, getReturnValueWrapper(mappedStatement));
     }
@@ -126,8 +126,20 @@ public class CachePlugin implements Interceptor {
         if (returnValueTypeMap.containsKey(mappedStatement.getId())) {
             return returnValueTypeMap.get(mappedStatement.getId());
         }
+
+
         String id = mappedStatement.getId();
+        ReturnValueWrapper wrapper = new MybatisReturnValueWrapper(getMethod(id).getReturnType());
+        returnValueTypeMap.put(id, wrapper);
+        return wrapper;
+    }
+
+    private Method getMethod(String id) throws Exception {
+
         //id 是方法全路径，不m包括参数
+        Method m = methodStringMap.get(id);
+        if (m != null) return m;
+
         String className = id.substring(0, id.lastIndexOf("."));
 
         String methodName = id.substring(id.lastIndexOf(".") + 1);
@@ -135,9 +147,8 @@ public class CachePlugin implements Interceptor {
         Method[] methods = Class.forName(className).getMethods();
         for (Method method : methods) {
             if (method.getName().equals(methodName)) {
-                ReturnValueWrapper wrapper = new MybatisReturnValueWrapper(method.getReturnType());
-                returnValueTypeMap.put(id, wrapper);
-                return wrapper;
+                methodStringMap.put(id, method);
+                return method;
             }
         }
         return null;
@@ -169,7 +180,7 @@ public class CachePlugin implements Interceptor {
         }
 
         CacheProperties p = new CacheProperties();
-        p.setKeyPrefix(properties.getProperty("keyPrefix"));
+        p.setKeyPrefix(properties.getProperty("keyPrefix", ""));
         p.setSync(Boolean.parseBoolean(properties.getOrDefault("sync", false).toString()));
         this.core.setProperties(p);
     }

@@ -62,6 +62,7 @@ public class CacheCore {
      * @param wrapper 对返回值的额外处理，用于绕开部分框架可能存在的对数据的包装
      * @return
      */
+    @Deprecated
     public Object query(String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
 
         Cache cache = getCache(id);
@@ -73,6 +74,8 @@ public class CacheCore {
         if (cache == null) {
             return task.proceed();
         }
+        methodCacheMap.put(id, cache);
+
         //获取key
         String key = properties.getKeyPrefix() + engine.express(cache.key(), args);
         //从redis中获取值
@@ -143,6 +146,10 @@ public class CacheCore {
      */
     public boolean del(String id, Map<String, Object> args) throws Throwable {
         Cache cache = getCache(id);
+        return del(cache, id, args);
+    }
+
+    public boolean del(Cache cache, String id, Map<String, Object> args) throws Throwable {
         if (cache == null || !cache.del()) return false;
         //获取key
         String key = engine.express(cache.key(), args);
@@ -246,7 +253,7 @@ public class CacheCore {
             return methodCacheMap.get(id);
         }
         //id 是方法全路径，不包括参数
-
+//TODO 2019/12/20 此处有问题
         Matcher matcher = idPattern.matcher(id);
         Method method = null;
         if (matcher.find()) {

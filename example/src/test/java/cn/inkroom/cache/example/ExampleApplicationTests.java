@@ -49,7 +49,6 @@ class ExampleApplicationTests {
         final CountDownLatch countDownLatch = new CountDownLatch(count);
 
         final CountDownLatch all = new CountDownLatch(count);
-
         for (int i = 0; i < count; i++) {
             new Thread(new Runnable() {
                 @Override
@@ -57,6 +56,7 @@ class ExampleApplicationTests {
                     try {
                         countDownLatch.await();
                         logger.debug("list={}", dao.list(2, 4));
+                        Assertions.assertTrue(template.hasKey("2"));
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
@@ -90,6 +90,7 @@ class ExampleApplicationTests {
                     try {
                         countDownLatch.await();
                         logger.debug("list={}", dao.list(finalI, 4));
+                        Assertions.assertTrue(template.hasKey(finalI));
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
