@@ -53,6 +53,15 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
         this.core = new CacheCore();
     }
 
+    /**
+     * jdk的方法拦截
+     *
+     * @param proxy
+     * @param method
+     * @param args
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
@@ -65,12 +74,30 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
         return core.query(cache, id, argsMap, () -> method.invoke(target, args), null);
     }
 
+    /**
+     * spring 的方法拦截
+     *
+     * @param o
+     * @param method
+     * @param objects
+     * @param methodProxy
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
-        Cache cache = cacheMap.get(method.getName());
+        String id = method.toString().replaceAll("^[^ ]+ [^ ]+ ", "");
+
+        Cache cache = cacheMap.get(id);
+
         if (cache == null) return methodProxy.invokeSuper(o, objects);
         //拼接id
-        String id = className + "." + method.getName();
+
+        logger.debug("{}", method.getName());
+        logger.debug("{}", method.toString());
+        logger.debug("id={}", id);
+
+
         Map<String, Object> args = getArgs(method, objects);
 
         return core.query(cache, id, args, () -> methodProxy.invokeSuper(o, objects), null);

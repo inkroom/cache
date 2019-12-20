@@ -9,13 +9,14 @@ import cn.inkroom.cache.core.script.ScriptEngine;
 import cn.inkroom.cache.core.sync.SyncTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.expression.spel.support.ReflectionHelper;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 缓存核心类
@@ -56,7 +57,7 @@ public class CacheCore {
      * 从缓存中query
      *
      * @param args    参数
-     * @param id      对应方法的全路径
+     * @param id      对应方法的全路径，包含参数签名
      * @param task    获取实际数据的回调
      * @param wrapper 对返回值的额外处理，用于绕开部分框架可能存在的对数据的包装
      * @return
@@ -66,6 +67,7 @@ public class CacheCore {
         Cache cache = getCache(id);
         return query(cache, id, args, task, wrapper);
     }
+
 
     public Object query(Cache cache, String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
         if (cache == null) {
@@ -225,13 +227,17 @@ public class CacheCore {
         }
     }
 
+    private Pattern idPattern = Pattern.compile("^(^[\\(]+)([^.|\\(]+)\\((.+)\\)");
+
+
     /**
      * 获取Cache注解和返回值类型
      *
-     * @param id
-     * @return 第一个为cache，第二个为class
+     * @param id 方法全路径，如cn.inkroom.cache.core.CacheCore.getCache(String)
+     * @return cache
      * @throws Throwable
      */
+    @SuppressWarnings("all")
     private Cache getCache(String id) throws Throwable {
 
         logger.debug("缓存的cache={}", methodCacheMap);
@@ -239,21 +245,32 @@ public class CacheCore {
         if (methodCacheMap.containsKey(id)) {
             return methodCacheMap.get(id);
         }
-        //id 是方法全路径，不m包括参数
-        String className = id.substring(0, id.lastIndexOf("."));
+        //id 是方法全路径，不包括参数
 
-        String methodName = id.substring(id.lastIndexOf(".") + 1);
+        Matcher matcher = idPattern.matcher(id);
+        Method method = null;
+        if (matcher.find()) {
+            Class c = Class.forName(matcher.group(1));
 
-        Method[] methods = Class.forName(className).getMethods();
-        for (Method method : methods) {
-            if (method.getName().equals(methodName)) {
-                Cache c = method.getAnnotation(Cache.class);
-                methodCacheMap.put(id, c);
-                return c;
+            Method[] methods = c.getMethods();
+
+            List<Class> params = new LinkedList<>();
+
+            for (int i = 3; i <= matcher.groupCount(); i++) {
+                params.add(Class.forName(matcher.group(i)));
             }
+            Class[] ps = new Class[params.size()];
+            if (params.size() != 0) {
+                method = c.getMethod(matcher.group(2), params.toArray(ps));
+            } else {
+                method = c.getMethod(matcher.group(2));
+            }
+
         }
 
-        return null;
+        Cache c = method.getAnnotation(Cache.class);
+        methodCacheMap.put(id, c);
+        return c;
     }
 
 

@@ -22,8 +22,15 @@ public class WaitProxyExampleBean implements ExampleInterface {
         return true;
     }
 
+    @Override
+    @Cache(key = "name+'-'")
+    public boolean param(String name) {
+        return false;
+    }
+
     /**
      * 用于测试interface没有的方法
+     *
      * @param name
      * @param age
      * @return

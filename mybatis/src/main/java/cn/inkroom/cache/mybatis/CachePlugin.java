@@ -8,7 +8,6 @@ import cn.inkroom.cache.core.sync.JdkSyncTool;
 import cn.inkroom.cache.core.sync.SyncTool;
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.executor.Executor;
-import org.apache.ibatis.executor.resultset.ResultSetHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.plugin.*;
@@ -19,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.sql.Statement;
 import java.util.*;
 
 /**
@@ -98,12 +96,30 @@ public class CachePlugin implements Interceptor {
      * @param invocation
      * @return
      */
+    @SuppressWarnings("all")
     private Object query(final Invocation invocation) throws Throwable {
         //获取Cache
         org.apache.ibatis.mapping.MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
         //封装参数
         Map<String, Object> args = getArgs(invocation);
-        return core.query(mappedStatement.getId(), args, invocation::proceed, getReturnValueWrapper(mappedStatement));
+
+
+        String id = invocation.getMethod().toString().replaceAll("^[^ ]+ [^ ]+ ", "");
+        Cache c = getCache(id, invocation.getMethod());
+        if (c == null) return invocation.proceed();
+        return core.query(c, id, args, invocation::proceed, getReturnValueWrapper(mappedStatement));
+    }
+
+    private Map<String, Cache> cacheMap = new HashMap<>();
+
+    private Cache getCache(String id, Method method) {
+        Cache c = cacheMap.get(id);
+        if (c == null) {
+            c = method.getAnnotation(Cache.class);
+            if (c != null)
+                cacheMap.put(id, c);
+        }
+        return c;
     }
 
     private ReturnValueWrapper getReturnValueWrapper(MappedStatement mappedStatement) throws Throwable {

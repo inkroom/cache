@@ -45,6 +45,11 @@ class ContextTest {
 
         Assertions.assertTrue(template.hasKey(name + "-" + age));
 
+        //测试重载
+        bean.param(name);
+        Assertions.assertTrue(template.hasKey(name + "-"));
+
+
 //        bean.out(name, age);
     }
 

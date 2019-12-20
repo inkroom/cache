@@ -70,7 +70,7 @@ public class CacheBeanPostProcessor implements BeanPostProcessor {
                 paramNames.put(methodName, parameterNames);
 
             }
-            cacheMap.put(methods[i].getName(), cache);
+            cacheMap.put(methods[i].toString().replaceAll("^[^ ]+ [^ ]+ ", ""), cache);
 
         }
 
