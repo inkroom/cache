@@ -63,6 +63,7 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
      * @throws Throwable
      */
     @Override
+    @Deprecated
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
         Cache cache = cacheMap.get(method.getName());
@@ -71,7 +72,7 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
         String id = className + "." + method.getName();
         Map<String, Object> argsMap = getArgs(method, args);
 
-        return core.query(cache, id, argsMap, () -> method.invoke(target, args), null);
+        return core.query(method.toString().replaceAll("^[^ ]+ [^ ]+ ", ""), argsMap, () -> method.invoke(target, args), null);
     }
 
     /**
@@ -100,7 +101,7 @@ public class CacheInvocationHandler implements InvocationHandler, MethodIntercep
 
         Map<String, Object> args = getArgs(method, objects);
 
-        return core.query(cache, id, args, () -> methodProxy.invokeSuper(o, objects), null);
+        return core.query(id, args, () -> methodProxy.invokeSuper(o, objects), null);
     }
 
 

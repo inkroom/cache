@@ -1,12 +1,7 @@
 package cn.inkroom.cache.core.annotation;
 
-import cn.inkroom.cache.core.sync.JdkSyncTool;
-import cn.inkroom.cache.core.sync.SyncTool;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 脚本的语法和解析引擎相关
@@ -29,11 +24,22 @@ public @interface Cache {
 
     /**
      * 获取key的脚本，具体语法和解析引擎相关
+     * <br/>
+     * 使用 rv 访问返回值结果——注意rv有可能不存在
+     * 参数可直接访问
      *
      * @return
      */
     String key();
 
+    /**
+     * 决定要缓存的对象的脚本；
+     * <br/>
+     * 仅在被@Caches包裹的情况下生效
+     *
+     * @return
+     */
+    String data() default "";
 
     /**
      * 是否将结果缓存，返回boolean的脚本
@@ -88,4 +94,13 @@ public @interface Cache {
      * @return
      */
     boolean del() default false;
+
+    /**
+     * 决定是否忽略以前缓存的脚本
+     * <br/>
+     * 当脚本返回true时，忽略以前的缓存，执行实际的方法，并将返回结果缓存
+     *
+     * @return
+     */
+    String ignore() default "";
 }

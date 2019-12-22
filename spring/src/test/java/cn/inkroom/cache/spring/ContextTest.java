@@ -53,4 +53,22 @@ class ContextTest {
 //        bean.out(name, age);
     }
 
+    /**
+     * 测试复合属性缓存
+     *
+     * @throws Exception
+     */
+    @Test
+    void testCaches() throws Exception {
+        String name = "32ddfdf";
+        int age = 43;
+
+        ExampleInterface.VO vo = bean.vo(name, age);
+
+        Assertions.assertTrue(template.hasKey("vo-" + name + "-" + age));
+        Assertions.assertTrue(template.hasKey("vo.data=" + name));
+        Assertions.assertTrue(template.hasKey("vo.age=" + age));
+
+        Assertions.assertEquals(vo, bean.vo(name, age));
+    }
 }

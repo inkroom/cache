@@ -28,4 +28,15 @@ public interface ScriptEngine {
      * @return
      */
     boolean booleanExpress(String express, Map<String, Object> args);
+
+    /**
+     * 获取一个Object，用于指定缓存的对象
+     *
+     * @param express
+     * @param args
+     * @return
+     */
+    default Object objectExpress(String express, Map<String, Object> args) {
+        return null;
+    }
 }

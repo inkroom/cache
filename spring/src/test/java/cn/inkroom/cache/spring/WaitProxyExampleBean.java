@@ -1,9 +1,9 @@
 package cn.inkroom.cache.spring;
 
 import cn.inkroom.cache.core.annotation.Cache;
+import cn.inkroom.cache.core.annotation.Caches;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 public class WaitProxyExampleBean implements ExampleInterface {
 
@@ -26,6 +26,19 @@ public class WaitProxyExampleBean implements ExampleInterface {
     @Cache(key = "name+'-'")
     public boolean param(String name) {
         return false;
+    }
+
+    @Caches(
+            {@Cache(key = "'vo.data='+rv.name",data = "rv.name"), @Cache(key = "'vo.age='+rv.age",data = "rv.age")}
+    )
+    @Cache(key = "'vo-'+name+'-'+age")
+    @Override
+    public VO vo(String name, int age) {
+
+        VO vo = new VO();
+        vo.setName(name);
+        vo.setAge(age);
+        return vo;
     }
 
     /**

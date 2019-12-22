@@ -1,15 +1,16 @@
 package cn.inkroom.cache.core;
 
 import cn.inkroom.cache.core.annotation.Cache;
+import cn.inkroom.cache.core.annotation.Caches;
 import cn.inkroom.cache.core.config.CacheProperties;
 import cn.inkroom.cache.core.db.CacheTemplate;
 import cn.inkroom.cache.core.plugins.StaticsPlugin;
 import cn.inkroom.cache.core.script.AviatorEngine;
 import cn.inkroom.cache.core.script.ScriptEngine;
 import cn.inkroom.cache.core.sync.SyncTool;
+import cn.inkroom.cache.core.util.ReflectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.expression.spel.support.ReflectionHelper;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -28,8 +29,6 @@ public class CacheCore {
     private Logger logger = LoggerFactory.getLogger(getClass());
     private SyncTool syncTool;
 
-    private Map<String, Cache> methodCacheMap = new HashMap<>();
-
     private ExecutorService executor;
     private ScriptEngine engine = new AviatorEngine();
 
@@ -41,6 +40,8 @@ public class CacheCore {
 
     private CacheTemplate cacheTemplate;
     private StaticsPlugin plugin;
+
+    private ReflectHelper helper = new ReflectHelper();
 
     public CacheCore() {
 
@@ -62,24 +63,32 @@ public class CacheCore {
      * @param wrapper 对返回值的额外处理，用于绕开部分框架可能存在的对数据的包装
      * @return
      */
-    @Deprecated
+
     public Object query(String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
 
-        Cache cache = getCache(id);
-        return query(cache, id, args, task, wrapper);
+        Caches caches = helper.getCaches(id);
+
+        Cache cache = helper.getCache(id);
+        return query(caches, cache, id, args, task, wrapper);
     }
 
+    private String getKey(Cache cache, Map<String, Object> args, Object value) {
 
-    public Object query(Cache cache, String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
-        if (cache == null) {
+        Map<String, Object> context = new HashMap<>(args);
+        if (value != null)
+            context.put("rv", value);
+
+        return properties.getKeyPrefix() + engine.express(cache.key(), context);
+    }
+
+    private Object query(Caches caches, Cache cache, String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
+        if (caches == null && cache == null) {
             return task.proceed();
         }
-        methodCacheMap.put(id, cache);
-
         //获取key
-        String key = properties.getKeyPrefix() + engine.express(cache.key(), args);
+        String key = getKey(cache, args, null);
         //从redis中获取值
-        Object value = getValue(key, cache, task);
+        Object value = getValue(key, caches, cache, args, task, wrapper);
 
         if (value != null) {
             plugin(id, cache, key, args, 1);
@@ -102,9 +111,11 @@ public class CacheCore {
         plugin(id, cache, key, args, 4);
         value = task.proceed();
         //存入redis
-        if (isSave(cache, args, value)) {
-            cacheTemplate.set(key, wrapper == null ? value : wrapper.wrapper(value), getTtl(cache));
-        }
+
+        saveValue(caches, cache, args, value, wrapper);
+//        if (isSave(caches, cache, args, value)) {
+//            cacheTemplate.set(key, wrapper == null ? value : wrapper.wrapper(value), getTtl(cache));
+//        }
         unlock(cache, key);
         return value;
     }
@@ -145,11 +156,11 @@ public class CacheCore {
      * @return
      */
     public boolean del(String id, Map<String, Object> args) throws Throwable {
-        Cache cache = getCache(id);
+        Cache cache = helper.getCache(id);
         return del(cache, id, args);
     }
 
-    public boolean del(Cache cache, String id, Map<String, Object> args) throws Throwable {
+    private boolean del(Cache cache, String id, Map<String, Object> args) throws Throwable {
         if (cache == null || !cache.del()) return false;
         //获取key
         String key = engine.express(cache.key(), args);
@@ -187,10 +198,20 @@ public class CacheCore {
      * @param task  真正获取数据的方法
      * @return
      */
-    private Object getValue(String key, Cache cache, Task task) throws Throwable {
-
+    private Object getValue(String key, Caches caches, Cache cache, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
+        boolean ignore = false;
+//        if (caches != null && !caches.ignore().equals("")) {
+//            ignore = engine.booleanExpress(caches.ignore(), args);
+//        } else
+        if (!cache.ignore().equals("")) {
+            ignore = engine.booleanExpress(cache.ignore(), args);
+        }
+        if (ignore) {//是否需要忽略缓存
+            return null;
+        }
         Object value = cacheTemplate.get(key);
         if (value != null) {
+            //最顶层对象的时间
             long expire = cache.expire();
             if (expire == -1) {//不主动更新
                 return value;
@@ -199,7 +220,7 @@ public class CacheCore {
                 executor.execute(() -> {
                     try {
                         Object proceed = task.proceed();
-                        cacheTemplate.set(key, proceed, getTtl(cache));
+                        saveValue(caches, cache, args, proceed, wrapper);
                         logger.debug("主动更新值={}", key);
                     } catch (Throwable throwable) {
                         logger.warn("[获取数据] - 主动更新缓存时获取数据失败 {}", throwable.getMessage(), throwable);
@@ -209,6 +230,40 @@ public class CacheCore {
             }
         }
         return value;
+    }
+
+    /**
+     * 存入缓存
+     *
+     * @param caches 复合缓存配置信息
+     * @param cache  单个缓存配置信息
+     * @param params 参数
+     * @param value  需要缓存的值
+     */
+    private void saveValue(Caches caches, Cache cache, Map<String, Object> params, Object value, ReturnValueWrapper wrapper) throws Throwable {
+
+        Cache[] cs = null;
+        if (caches != null) {
+            cs = new Cache[caches.value().length + 1];
+            cs[0] = cache;
+            System.arraycopy(caches.value(), 0, cs, 1, cs.length - 1);
+
+        } else {
+            cs = new Cache[]{cache};
+        }
+        Object v = wrapper == null ? value : wrapper.wrapper(value);
+        params.put("rv", v);
+        for (int i = 0; i < cs.length; i++) {
+            if (isSave(cs[i], params, value)) {
+                String key = getKey(cs[i], params, value);
+                Object nv = v;
+                if (i != 0 && !"".equals(cs[i].data())) {
+                    nv = engine.objectExpress(cs[i].data(), params);
+                }
+                cacheTemplate.set(key, nv, getTtl(cache));
+            }
+
+        }
     }
 
     private long getTtl(Cache cache) {
@@ -232,52 +287,6 @@ public class CacheCore {
         if (cache.sync() || properties.isSync()) {
             syncTool.unlock(key);
         }
-    }
-
-    private Pattern idPattern = Pattern.compile("^(^[\\(]+)([^.|\\(]+)\\((.+)\\)");
-
-
-    /**
-     * 获取Cache注解和返回值类型
-     *
-     * @param id 方法全路径，如cn.inkroom.cache.core.CacheCore.getCache(String)
-     * @return cache
-     * @throws Throwable
-     */
-    @SuppressWarnings("all")
-    private Cache getCache(String id) throws Throwable {
-
-        logger.debug("缓存的cache={}", methodCacheMap);
-        //从缓存中拿
-        if (methodCacheMap.containsKey(id)) {
-            return methodCacheMap.get(id);
-        }
-        //id 是方法全路径，不包括参数
-//TODO 2019/12/20 此处有问题
-        Matcher matcher = idPattern.matcher(id);
-        Method method = null;
-        if (matcher.find()) {
-            Class c = Class.forName(matcher.group(1));
-
-            Method[] methods = c.getMethods();
-
-            List<Class> params = new LinkedList<>();
-
-            for (int i = 3; i <= matcher.groupCount(); i++) {
-                params.add(Class.forName(matcher.group(i)));
-            }
-            Class[] ps = new Class[params.size()];
-            if (params.size() != 0) {
-                method = c.getMethod(matcher.group(2), params.toArray(ps));
-            } else {
-                method = c.getMethod(matcher.group(2));
-            }
-
-        }
-
-        Cache c = method.getAnnotation(Cache.class);
-        methodCacheMap.put(id, c);
-        return c;
     }
 
 

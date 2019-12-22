@@ -77,7 +77,7 @@ public class CachePlugin implements Interceptor {
     }
 
     /**
-     * 执行查询任务
+     * 执行删除任务
      *
      * @param invocation
      * @return
@@ -88,9 +88,8 @@ public class CachePlugin implements Interceptor {
         //封装参数
         Map<String, Object> args = getArgs(invocation);
         String id = mappedStatement.getId();
-        return core.del(getCache(id, getMethod(id)), mappedStatement.getId(), args);
+        return core.del(getMethod(id).toString().replaceAll("^[^ ]+ [^ ]+ ", ""), args);
     }
-
 
     /**
      * 执行查询任务
@@ -105,9 +104,10 @@ public class CachePlugin implements Interceptor {
         //封装参数
         Map<String, Object> args = getArgs(invocation);
         String id = mappedStatement.getId();
-        Cache c = getCache(id, getMethod(id));
+        Method m = getMethod(id);
+        Cache c = getCache(id, m);
         if (c == null) return invocation.proceed();
-        return core.query(c, id, args, invocation::proceed, getReturnValueWrapper(mappedStatement));
+        return core.query(m.toString().replaceAll("^[^ ]+ [^ ]+ ", ""), args, invocation::proceed, getReturnValueWrapper(mappedStatement));
     }
 
     private Map<String, Cache> cacheMap = new HashMap<>();

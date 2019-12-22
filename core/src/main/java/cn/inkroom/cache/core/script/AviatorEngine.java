@@ -14,6 +14,11 @@ public class AviatorEngine implements ScriptEngine {
 
     private Map<String, Expression> expressionMap = new HashMap<>();
 
+    @Override
+    public Object objectExpress(String express, Map<String, Object> args) {
+        Expression expression = getExpression(express);
+        return expression.execute(args);
+    }
 
     @Override
     public String express(String express, Map<String, Object> args) {
