@@ -1,8 +1,10 @@
 package cn.inkroom.cache.core;
 
 import cn.inkroom.cache.core.annotation.Cache;
+import cn.inkroom.cache.core.annotation.CacheEvict;
 import cn.inkroom.cache.core.annotation.Caches;
 import cn.inkroom.cache.core.config.CacheProperties;
+import cn.inkroom.cache.core.context.CacheContext;
 import cn.inkroom.cache.core.db.CacheTemplate;
 import cn.inkroom.cache.core.plugins.StaticsPlugin;
 import cn.inkroom.cache.core.script.AviatorEngine;
@@ -12,12 +14,9 @@ import cn.inkroom.cache.core.util.ReflectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 缓存核心类
@@ -64,7 +63,7 @@ public class CacheCore {
      * @return
      */
 
-    public Object query(String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
+    public Object query(String id, Map<String, Object> args, Task task, ReturnValueUnWrapper wrapper) throws Throwable {
 
         Caches caches = helper.getCaches(id);
 
@@ -72,25 +71,20 @@ public class CacheCore {
         return query(caches, cache, id, args, task, wrapper);
     }
 
-    private String getKey(Cache cache, Map<String, Object> args, Object value) {
-
-        Map<String, Object> context = new HashMap<>(args);
-        if (value != null)
-            context.put("rv", value);
-
-        return properties.getKeyPrefix() + engine.express(cache.key(), context);
-    }
-
-    private Object query(Caches caches, Cache cache, String id, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
+    private Object query(Caches caches, Cache cache, String id, Map<String, Object> args, Task task, ReturnValueUnWrapper wrapper) throws Throwable {
         if (caches == null && cache == null) {
             return task.proceed();
         }
-        //获取key
-        String key = getKey(cache, args, null);
-        //从redis中获取值
-        Object value = getValue(key, caches, cache, args, task, wrapper);
 
-        if (value != null) {
+
+//        构建上下文对象
+        CacheContext context = new CacheContext(id, caches, cache, properties, engine, args);
+        //获取key
+        String key = context.getKey();
+        //从redis中获取值
+        Object value = getCacheValue(key, caches, context, task, wrapper);
+
+        if (value != null) {//命中缓存
             plugin(id, cache, key, args, 1);
             return value;
         }
@@ -109,14 +103,19 @@ public class CacheCore {
             }
         }
         plugin(id, cache, key, args, 4);
-        value = task.proceed();
+        value = task.proceed();//执行真实方法
+        context.setReturnValue(value);
         //存入redis
 
-        saveValue(caches, cache, args, value, wrapper);
+        saveValue(context, wrapper);
 //        if (isSave(caches, cache, args, value)) {
 //            cacheTemplate.set(key, wrapper == null ? value : wrapper.wrapper(value), getTtl(cache));
 //        }
         unlock(cache, key);
+
+//        实现删除缓存功能
+
+
         return value;
     }
 
@@ -168,29 +167,6 @@ public class CacheCore {
     }
 
     /**
-     * 判断是否要存入缓存
-     * <p>通过 #params 访问参数</p>
-     * <p>通过 #rv 访问结果</p>
-     *
-     * @param cache       配置
-     * @param params      参数
-     * @param returnValue 可能要缓存的结果
-     * @return
-     * @see Cache#condition()
-     */
-    private boolean isSave(Cache cache, Map<String, Object> params, Object returnValue) {
-        if (returnValue == null && !cache.nullable()) return false;
-        if ("".equals(cache.condition())) return true;
-        logger.debug("condition脚本={}", cache.condition());
-        Map<String, Object> args = new HashMap<>();
-        args.put("params", params);
-        args.put("rv", returnValue);
-
-        logger.debug("condition的context={}", args);
-        return engine.booleanExpress(cache.condition(), args);
-    }
-
-    /**
      * 获取value，并在满足情况下，主动更新缓存
      *
      * @param key   key
@@ -198,21 +174,15 @@ public class CacheCore {
      * @param task  真正获取数据的方法
      * @return
      */
-    private Object getValue(String key, Caches caches, Cache cache, Map<String, Object> args, Task task, ReturnValueWrapper wrapper) throws Throwable {
-        boolean ignore = false;
-//        if (caches != null && !caches.ignore().equals("")) {
-//            ignore = engine.booleanExpress(caches.ignore(), args);
-//        } else
-        if (!cache.ignore().equals("")) {
-            ignore = engine.booleanExpress(cache.ignore(), args);
-        }
-        if (ignore) {//是否需要忽略缓存
+    private Object getCacheValue(String key, Caches caches, CacheContext context, Task task, ReturnValueUnWrapper wrapper) throws Throwable {
+        if (context.isIgnore()) {//是否需要忽略缓存
             return null;
         }
+
         Object value = cacheTemplate.get(key);
         if (value != null) {
             //最顶层对象的时间
-            long expire = cache.expire();
+            long expire = context.expire();
             if (expire == -1) {//不主动更新
                 return value;
             } else if (expire < cacheTemplate.ttl(key)) {
@@ -220,7 +190,8 @@ public class CacheCore {
                 executor.execute(() -> {
                     try {
                         Object proceed = task.proceed();
-                        saveValue(caches, cache, args, proceed, wrapper);
+                        context.setReturnValue(proceed);
+                        saveValue(context, wrapper);
                         logger.debug("主动更新值={}", key);
                     } catch (Throwable throwable) {
                         logger.warn("[获取数据] - 主动更新缓存时获取数据失败 {}", throwable.getMessage(), throwable);
@@ -235,44 +206,45 @@ public class CacheCore {
     /**
      * 存入缓存
      *
-     * @param caches 复合缓存配置信息
-     * @param cache  单个缓存配置信息
-     * @param params 参数
-     * @param value  需要缓存的值
+     * @param context 上下文信息
+     * @param wrapper 数据包装解包装
      */
-    private void saveValue(Caches caches, Cache cache, Map<String, Object> params, Object value, ReturnValueWrapper wrapper) throws Throwable {
+    private void saveValue(CacheContext context, ReturnValueUnWrapper wrapper) throws Throwable {
 
-        Cache[] cs = null;
-        if (caches != null) {
-            cs = new Cache[caches.value().length + 1];
-            cs[0] = cache;
-            System.arraycopy(caches.value(), 0, cs, 1, cs.length - 1);
-
-        } else {
-            cs = new Cache[]{cache};
+        Object v = wrapper == null ? context.getReturnValue() : wrapper.wrapper(context.getReturnValue());
+        if (context.isSave()) {
+            String key = context.getKey();
+            Object nv = v;
+//                if (i != 0 && !"".equals(cs[i].data())) {
+//                    nv = engine.objectExpress(cs[i].data(), params);
+//                }
+            cacheTemplate.set(key, nv, context.getTtl());
         }
-        Object v = wrapper == null ? value : wrapper.wrapper(value);
-        params.put("rv", v);
-        for (int i = 0; i < cs.length; i++) {
-            if (isSave(cs[i], params, value)) {
-                String key = getKey(cs[i], params, value);
-                Object nv = v;
-                if (i != 0 && !"".equals(cs[i].data())) {
-                    nv = engine.objectExpress(cs[i].data(), params);
+        //            保存属性数据
+
+        if (context.getCaches() != null) {
+            Cache[] cs = context.getCaches().value();
+
+            for (Cache c : cs) {
+
+                if (context.isSave(c)) {
+                    cacheTemplate.set(context.getKey(c), context.getData(c), context.getTtl(c));
                 }
-                cacheTemplate.set(key, nv, getTtl(cache));
+
+
             }
+//            处理要删除的数据
+            CacheEvict[] evicts = context.getCaches().evict();
+            for (CacheEvict evict : evicts) {
 
+                if (context.isSave(evict.condition())) {
+                    String key = context.getKey(evict.key());
+
+                    cacheTemplate.del(key);
+
+                }
+            }
         }
-    }
-
-    private long getTtl(Cache cache) {
-        long ttl = cache.ttl();
-        if (cache.random().length == 0)
-            return ttl;
-        int[] randoms = cache.random();
-        Random random = new Random();
-        return ttl + (random.nextInt(randoms[1] - randoms[0]) + randoms[0]) * 1000;
     }
 
     private boolean lock(Cache cache, String key) {

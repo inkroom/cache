@@ -1,7 +1,7 @@
 package cn.inkroom.cache.mybatis;
 
 import cn.inkroom.cache.core.CacheCore;
-import cn.inkroom.cache.core.ReturnValueWrapper;
+import cn.inkroom.cache.core.ReturnValueUnWrapper;
 import cn.inkroom.cache.core.annotation.Cache;
 import cn.inkroom.cache.core.config.CacheProperties;
 import cn.inkroom.cache.core.sync.JdkSyncTool;
@@ -48,7 +48,7 @@ public class CachePlugin implements Interceptor {
     private Logger logger = LoggerFactory.getLogger(getClass());
 
     private CacheCore core;
-    private Map<String, ReturnValueWrapper> returnValueTypeMap = new HashMap<>();
+    private Map<String, ReturnValueUnWrapper> returnValueTypeMap = new HashMap<>();
     private Map<String, Method> methodStringMap = new HashMap<>();
 
     public void setCore(CacheCore core) {
@@ -122,14 +122,14 @@ public class CachePlugin implements Interceptor {
         return c;
     }
 
-    private ReturnValueWrapper getReturnValueWrapper(MappedStatement mappedStatement) throws Throwable {
+    private ReturnValueUnWrapper getReturnValueWrapper(MappedStatement mappedStatement) throws Throwable {
         if (returnValueTypeMap.containsKey(mappedStatement.getId())) {
             return returnValueTypeMap.get(mappedStatement.getId());
         }
 
 
         String id = mappedStatement.getId();
-        ReturnValueWrapper wrapper = new MybatisReturnValueWrapper(getMethod(id).getReturnType());
+        ReturnValueUnWrapper wrapper = new MybatisReturnValueUnWrapper(getMethod(id).getReturnType());
         returnValueTypeMap.put(id, wrapper);
         return wrapper;
     }

@@ -39,6 +39,8 @@ class ContextTest {
 
     @Test
     void testParam() {
+
+        
         String name = "name";
         int age = 32;
         bean.param(name, age);

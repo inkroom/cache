@@ -1,19 +1,19 @@
 package cn.inkroom.cache.mybatis;
 
-import cn.inkroom.cache.core.ReturnValueWrapper;
+import cn.inkroom.cache.core.ReturnValueUnWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 
-public class MybatisReturnValueWrapper implements ReturnValueWrapper {
+public class MybatisReturnValueUnWrapper implements ReturnValueUnWrapper {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
 
     private Class type;
 
-    public MybatisReturnValueWrapper(Class type) {
+    public MybatisReturnValueUnWrapper(Class type) {
         this.type = type;
     }
 
